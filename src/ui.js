@@ -14,6 +14,8 @@ const U = {
   selBox: null,
   selItem: null,
   moveId: null,
+  shelfOpen: {},          // раскрытые стеллажи
+  preset: 'fast',         // схема расстановки
   toast: null,
   toastUntil: 0,
   lastRender: 0,
@@ -509,7 +511,12 @@ function viewStart(){
     <div class="grid3">${prems}</div>
 
     <div class="start-foot">
-      <div class="muted small">Стартовый капитал 60 000 ₽ минус депозит помещения.</div>
+      <div class="sf-sum">
+        <b>${E.BRANDS.find(b => b.id === U.sel.brand)?.name || ''}</b>
+        <span class="dot">·</span>
+        <b>${E.PREMISES.find(p => p.id === U.sel.premise)?.name || ''}</b>
+        <span class="muted small">капитал ${fmt(60000 - (E.PREMISES.find(p => p.id === U.sel.premise)?.deposit || 0))} ₽</span>
+      </div>
       <button class="btn primary big" data-act="startGame">Открыть ПВЗ ${icon('chevron')}</button>
     </div>
   </div>`;
@@ -550,72 +557,109 @@ function speedButtons(){
 }
 
 /* ---------------- фаза планирования ---------------- */
+function flowChart(S){
+  const f = E.forecastFor(S);
+  if (!f.length) return '';
+  const W = 300, H = 92, pad = 8, top = 16;
+  const max = Math.max(...f.map(x => x.exp), 0.001);
+  const pts = f.map((x, i) => [
+    pad + i * (W - pad * 2) / Math.max(1, f.length - 1),
+    H - pad - (x.exp / max) * (H - pad - top),
+  ]);
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  const area = `${line} L ${pts[pts.length - 1][0].toFixed(1)} ${H - pad} L ${pts[0][0].toFixed(1)} ${H - pad} Z`;
+  const peak = f.reduce((b, x, i) => (x.exp > f[b].exp ? i : b), 0);
+  const px = pts[peak][0] / W * 100;
+  return `<div class="flow">
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="flowGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--accent)" stop-opacity=".55"/>
+          <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="${area}" fill="url(#flowGrad)"/>
+      <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"
+            stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    </svg>
+    <div class="fl-peak" style="left:${Math.min(72, Math.max(4, px - 8))}%">пик ${f[peak].hour}:00</div>
+    <div class="fl-lbl"><span>${f[0].hour}:00</span><span>${f[f.length - 1].hour}:00</span></div>
+  </div>`;
+}
+
+function tile(cls, ico, label, value, sub){
+  return `<div class="tile ${cls || ''}">
+    <div class="t-lbl">${icon(ico)}${label}</div>
+    <div class="t-val">${value}${sub ? `<small>${sub}</small>` : ''}</div>
+  </div>`;
+}
+function moneyTile(ico, label, val){
+  const n = Math.abs(Math.round(val));
+  if (!n) return tile('', ico, label, '0', '₽');
+  return tile('bad', ico, label, '−' + fmt(n), '₽');
+}
+
 function viewPlan(){
   const p = E.premOf(S), b = E.brandOf(S);
   const cap = E.capacity(S);
   const payroll = E.payrollNow(S);
-  const forecast = E.forecastFor(S);
-  const maxExp = Math.max(...forecast.map(f => f.exp), 1);
   const expected = Math.round(E.dayDemand(S));
-
-  const bars = forecast.map(f => `
-    <div class="fbar" title="${f.hour}:00 — ${f.exp.toFixed(1)}">
-      <i style="height:${Math.max(4, f.exp / maxExp * 100)}%"></i>
-      <span>${f.hour}</span>
-    </div>`).join('');
-
-  const cs = E.contractStatus(S);
-  const cont = E.contractOf(S);
+  const trucks = truckPlan(S);
+  const clients = Math.min(expected, trucks);
+  const probs = E.layoutProblems(S);
+  const cs = E.contractStatus(S), cont = E.contractOf(S);
+  const dayName = ['пн','вт','ср','чт','пт','сб','вс'][(S.day - 1) % 7];
 
   return `
   ${viewHud()}
-  <main class="wrap">
-    <section class="card pad day-brief" data-r="brief">
-      <div class="brief-top">
-        <div>
-          <div class="kicker">Утро · планирование</div>
-          <h2>День ${S.day}</h2>
-          <div class="muted small">${b.name} · ${p.name} · ${new Date().getDay() ? '' : ''}${['пн','вт','ср','чт','пт','сб','вс'][(S.day-1)%7]}</div>
-        </div>
-        <div class="brief-nums">
-          <div class="bn"><b>${Math.min(expected, truckPlan(S))}</b><span>прогноз клиентов</span></div>
-          <div class="bn"><b>${truckPlan(S)}</b><span>посылок привезут</span></div>
-          <div class="bn"><b>${cap.free}</b><span>свободно ячеек</span></div>
-        </div>
+  <main class="wrap plan has-bottom-nav">
+    <section class="card hero pad" data-r="brief">
+      <div class="kicker">Утро · планирование</div>
+      <h2 class="brief-day">День ${S.day}</h2>
+      <div class="brief-meta">${b.name} · ${p.name} · ${dayName}</div>
+      <div class="tiles">
+        ${tile('', 'users', 'клиенты', clients)}
+        ${tile('', 'box', 'посылки', trucks)}
+        ${tile(cap.free < clients ? 'warn' : 'good', 'shelf', 'ячейки', cap.free)}
       </div>
-      <div class="forecast">${bars}</div>
-      <div class="forecast-legend muted small">Почасовой прогноз потока (погрешность ±15%)</div>
+      ${flowChart(S)}
     </section>
 
     <section class="grid2" data-r="kpi">
       <div class="card pad">
-        <h3>${icon('award')} Контракт «${cont.name}»</h3>
+        <div class="sec-head">
+          <div class="sh-ico">${icon('award')}</div>
+          <div class="sh-t">Контракт «${cont.name}»</div>
+          <div class="sh-meta">аудит через ${7 - (S.day - 1) % 7} дн.</div>
+        </div>
         <div class="kpi">
           ${kpiRow('Скорость выдачи', cs.avgSla ? cs.avgSla + ' мин' : '—', '≤ ' + cont.sla, cs.slaOk)}
           ${kpiRow('Упущенные', (cs.missed * 100).toFixed(1) + '%', '≤ ' + (cont.missed * 100).toFixed(1) + '%', cs.missedOk)}
           ${kpiRow('NPS', S.nps.toFixed(2), '≥ ' + cont.nps, cs.npsOk)}
           ${kpiRow('Брендбук', Math.round(cs.compliance * 100) + '%', '≥ ' + Math.round(cont.brand * 100) + '%', cs.brandOk)}
         </div>
-        <div class="muted small">Аудит — каждые 7 дней. Провал — понижение контракта.</div>
       </div>
 
       <div class="card pad">
-        <h3>${icon('chart')} Экономика</h3>
-        <div class="kpi">
-          ${moneyRow('Аренда', -p.rent)}
-          ${moneyRow('ФОТ', -payroll)}
-          ${moneyRow('Коммуналка', -E.CFG.UTIL_PER_DAY)}
-          ${S.debt ? moneyRow('Кредит', -Math.round(S.debt * E.CFG.LOAN_RATE)) : ''}
+        <div class="sec-head">
+          <div class="sh-ico">${icon('wallet')}</div>
+          <div class="sh-t">Экономика дня</div>
+          <div class="sh-meta">долг <b>${fmt(S.debt)} ₽</b></div>
         </div>
-        ${S.staff.some(st => (st.prepay||0) > 0) ? `<div class="muted small">Аванс покрывает ${S.staff.filter(st=>(st.prepay||0)>0).length} чел. — зарплата за них пока не списывается.</div>` : ''}
-        <div class="row-between">
-          <span class="muted small">Долг: ${fmt(S.debt)} ₽</span>
-          <button class="btn small" data-act="loan" ${S.debt >= E.loanLimit(S) ? 'disabled' : ''}>Взять кредит 20 000 ₽</button>
+        <div class="tiles" style="grid-template-columns:1fr 1fr">
+          ${moneyTile('store', 'аренда', p.rent)}
+          ${moneyTile('users', 'ФОТ', payroll)}
+          ${moneyTile('zap', 'коммуналка', E.CFG.UTIL_PER_DAY)}
+          ${moneyTile('card', 'кредит', Math.round(S.debt * E.CFG.LOAN_RATE))}
+        </div>
+        <div class="row-between" style="margin-top:12px">
+          <span class="muted small">${S.staff.some(st => (st.prepay || 0) > 0) ? `аванс покрывает ${S.staff.filter(st => (st.prepay||0) > 0).length} чел.` : 'Кредит до ' + fmt(E.loanLimit(S)) + ' ₽'}</span>
+          <button class="btn small" data-act="loan" ${S.debt >= E.loanLimit(S) ? 'disabled' : ''}>Взять 20 000 ₽</button>
         </div>
       </div>
     </section>
 
-    <nav class="tabs" data-r="tabs">
+    <nav class="tabs top-tabs" data-r="tabs">
       ${tabBtn('layout','Планировка','layout', S.unplaced.length)}
       ${tabBtn('shop','Магазин','bag')}
       ${tabBtn('staff','Команда','users')}
@@ -625,18 +669,40 @@ function viewPlan(){
       ${U.tab === 'layout' ? layoutView() : U.tab === 'shop' ? shopView() : U.tab === 'staff' ? staffView() : policyView()}
     </section>
 
+    <nav class="bottom-nav" data-r="bnav">
+      ${bnavBtn('layout','Планировка','layout', S.unplaced.length)}
+      ${bnavBtn('shop','Магазин','bag', 0)}
+      ${bnavBtn('staff','Команда','users', 0)}
+      ${bnavBtn('policy','Склад','archive', 0)}
+    </nav>
+
     <div class="sticky-cta" data-r="cta">
-      <div class="muted small">${hintText()}</div>
-      <button class="btn primary big" data-act="startDay" ${E.layoutProblems(S).length ? 'disabled' : ''}>Начать день ${icon('chevron')}</button>
+      <button class="cta-note" ${probs.length ? `data-act="tab" data-id="${S.unplaced.length ? 'layout' : 'shop'}"` : 'data-act="noop"'}>
+        ${probs.length ? icon('alert') + '<span>' + probs[0] + ' — исправить</span>' : icon('check') + '<span>' + hintText() + '</span>'}
+      </button>
+      <button class="btn primary big" data-act="startDay" ${probs.length ? 'disabled' : ''}>
+        Начать день ${icon('chevron')}
+      </button>
     </div>
   </main>`;
+}
+
+function bnavBtn(id, label, ico, badge){
+  return `<button class="bn-i ${U.tab === id ? 'on' : ''}" data-act="tab" data-id="${id}">
+    ${icon(ico)}<span>${label}</span>${badge ? `<b class="bn-badge">${badge}</b>` : ''}
+  </button>`;
 }
 
 function tabBtn(id, label, ico, badge){
   return `<button class="tab ${U.tab === id ? 'on' : ''}" data-act="tab" data-id="${id}">${ico ? icon(ico) : ''}<span class="tab-lbl">${label}</span>${badge ? `<b class="tab-badge">${badge}</b>` : ''}</button>`;
 }
 function kpiRow(label, val, target, ok){
-  return `<div class="kpi-row"><span>${label}</span><b class="${ok ? 'good' : 'warn'}">${val}</b><span class="muted small">${target}</span></div>`;
+  return `<div class="kpi-row">
+    <span class="kd ${ok ? '' : 'warn'}"></span>
+    <span>${label}</span>
+    <b class="kv ${ok ? 'good' : 'warn'}">${val}</b>
+    <span class="kt">${target}</span>
+  </div>`;
 }
 function moneyRow(label, val){
   const txt = val === 0 ? '0 ₽' : (val > 0 ? '+' : '') + fmt(val) + ' ₽';
@@ -751,13 +817,22 @@ function layoutView(){
       }).join('')
     : '<span class="muted small">Всё купленное расставлено.</span>';
 
+  const presets = Object.entries(E.LAYOUT_PRESETS).map(([id, p]) => `
+    <button class="preset ${U.preset === id ? 'on' : ''}" data-act="preset" data-id="${id}">
+      <span class="pr-ico">${icon(p.ico)}</span>
+      <span class="pr-t">${p.name}</span>
+      <span class="pr-s">${p.desc}</span>
+    </button>`).join('');
+
   return `
-  <div class="row-between">
-    <h3>${icon('layout')} Планировка зала</h3>
-    <span class="muted small">свободно ${E.freeArea(S)} кл.</span>
+  <div class="sec-head">
+    <div class="sh-ico">${icon('layout')}</div>
+    <div class="sh-t">Планировка зала</div>
+    <div class="sh-meta">свободно <b>${E.freeArea(S)}</b> кл.</div>
   </div>
-  <div class="muted small" style="margin-bottom:8px">
-    Выберите предмет снизу и тапните по клетке. «кл.» у стеллажа — расстояние от стойки: от него зависит, сколько вы идёте за заказом.
+  <div class="preset-row">${presets}</div>
+  <div class="muted small" style="margin:10px 0 8px">
+    Тапните предмет внизу и затем клетку. «кл.» у стеллажа — расстояние до стойки: от него зависит время выдачи.
   </div>
   <div class="room" style="--cols:${g.w};--rows:${g.h}">
     <div class="room-bg">${bg}</div>
@@ -767,7 +842,7 @@ function layoutView(){
     <div class="muted small">${U.moveId ? 'Тапните клетку — предмет переедет'
       : U.selItem != null ? 'Тапните по клетке, чтобы поставить'
       : 'Выберите предмет или тапните по мебели, чтобы передвинуть'}</div>
-    <button class="btn ghost small" data-act="autoLayout">Расставить автоматически</button>
+    <button class="btn ghost small" data-act="preset" data-id="${U.preset}">Разложить по схеме</button>
   </div>
   <div class="palette">${palette}</div>`;
 }
@@ -775,11 +850,29 @@ function layoutView(){
 function shopView(){
   const ids = Object.keys(E.ITEMS);
   const slotsUsed = E.slotsUsed(S), slotsMax = E.premOf(S).slots;
+  const bundles = Object.keys(E.BUNDLES).map(key => {
+    const q = E.bundleQuote(S, key);
+    if (!q) return '';
+    const state = q.locked ? 'нужен уровень' : !q.missing.length ? 'собран' : null;
+    return `<button class="bundle ${state ? 'off' : ''}" data-act="bundle" data-id="${key}" ${state || S.money < q.cost ? 'disabled' : ''}>
+      <span class="bd-ico">${icon(q.ico)}</span>
+      <span class="bd-main">
+        <span class="bd-t">${q.name}</span>
+        <span class="bd-s">${state || q.missing.map(id => E.ITEMS[id].name).join(' · ')}</span>
+      </span>
+      <span class="bd-price">
+        ${state ? `<b>${state}</b>` : `<b>${fmt(q.cost)} ₽</b><s>${fmt(q.full)}</s>`}
+      </span>
+    </button>`;
+  }).join('');
+
   return `
-  <div class="row-between">
-    <h3>${icon('bag')} Оборудование и мебель</h3>
-    <span class="muted small">Занято ${slotsUsed}/${slotsMax} слотов</span>
+  <div class="sec-head">
+    <div class="sh-ico">${icon('bag')}</div>
+    <div class="sh-t">Оборудование и мебель</div>
+    <div class="sh-meta">слоты <b>${slotsUsed}/${slotsMax}</b></div>
   </div>
+  <div class="bundle-row">${bundles}</div>
   <div class="shop">
     ${ids.map(id => {
       const it = E.ITEMS[id];
@@ -899,16 +992,88 @@ function policyView(){
 }
 
 /* ---------------- день ---------------- */
+function coachCard(){
+  const truck = S.trucks.find(t => t.arrived && t.left > 0);
+  const room = E.capacity(S).free - S.receiving.length;
+  const step = (n, t, sub, btn) => `<div class="coach">
+      <div class="co-n">${n}</div>
+      <div style="min-width:0"><div class="co-t">${t}</div><div class="co-s">${sub}</div></div>
+      ${btn}
+    </div>`;
+
+  if (truck && truck.left > 0 && room > 0)
+    return step(1, `Машина привезла ${truck.left}`, `осталось <span data-live="truck-t">${Math.max(0, truck.waitLeft)}</span> мин · примите посылки`,
+      `<button class="btn primary" data-act="acceptAll">Принять всё</button>`);
+  if (S.receiving.length)
+    return step(2, `Разложите ${S.receiving.length} в приёмке`, 'Выберите ячейку на стеллаже',
+      `<button class="btn" data-act="placeAll">Разложить</button>`);
+  const nx = nextClient(S);
+  if (nx)
+    return step(3, `Клиент ${esc(nx.code || nx.returnCode || '')} ждёт`, 'Самый срочный в очереди',
+      `<button class="btn primary" data-act="nextClient">Обслужить</button>`);
+  if (S.broken && Object.keys(S.broken).some(k => S.broken[k]))
+    return step(4, 'Техника сломана', 'Ремонт окупается за день',
+      `<button class="btn" data-act="repairAll">Починить</button>`);
+  return step(0, 'Всё под контролем', 'Очередь пуста — можно ускорить время',
+    `<button class="btn ghost" data-act="speed" data-v="3">3×</button>`);
+}
+
+function coachCoversTruck(){
+  const truck = S.trucks.find(t => t.arrived && t.left > 0);
+  const room = E.capacity(S).free - S.receiving.length;
+  return !!(truck && room > 0);
+}
+
+function truckCard(truck){
+  if (!truck) return '';
+  return `<div class="truck-card">
+    <div class="tc-ico">${icon('truck')}</div>
+    <div style="min-width:0">
+      <div class="tc-t">Машина · ${truck.left} посылок</div>
+      <div class="tc-s" data-live="truck-t">уедет через ${Math.max(0, truck.waitLeft)} мин</div>
+      <div class="bar thin"><i class="${truck.waitLeft < 60 ? 'danger' : 'warn'}" data-live="truck-bar" style="width:${pct(truck.waitLeft, 300)}%"></i></div>
+    </div>
+    <div class="tc-act">
+      <button class="btn small" data-act="accept">Принять</button>
+      <button class="btn small primary" data-act="acceptAll">Всё</button>
+    </div>
+  </div>`;
+}
+
+function queueCard(){
+  const list = [...S.clients].sort((a,b) => a.patience - b.patience).slice(0, 8);
+  return `<div class="card pad" data-r="queue">
+    <div class="sec-head">
+      <div class="sh-ico">${icon('users')}</div>
+      <div class="sh-t">Очередь</div>
+      <div class="sh-meta"><b>${S.clients.length}</b> чел.${S.staff.filter(s => s.role === 'seller').length ? ` · продавцов ${S.staff.filter(s => s.role === 'seller').length}` : ''}</div>
+    </div>
+    ${S.clients.length ? `<div class="queue">${list.map(c => clientCard(c)).join('')}</div>` : `<div class="empty">Пока никого. Передохните.</div>`}
+    ${S.clients.length > 8 ? `<div class="muted small" style="margin-top:8px">и ещё ${S.clients.length - 8}…</div>` : ''}
+  </div>`;
+}
+
+function searchCard(){
+  return `<div class="card tight" data-r="search">
+    <div class="searchbar">
+      ${icon('search')}
+      <input id="order-q" type="text" inputmode="text" autocomplete="off" placeholder="Код заказа или клиента" />
+      <button class="btn small sb-go" data-act="findOrder">Найти</button>
+    </div>
+  </div>`;
+}
+
 function viewDay(){
   const truck = S.trucks.find(t => t.arrived && t.left > 0);
-  const cap = E.capacity(S);
   const busy = S.player.busy;
   const busyClient = busy ? S.clients.find(c => c.id === busy.clientId) : null;
-
   const ab = actionBar();
+
   return `
   ${viewHud()}
   <main class="wrap day${ab ? ' with-bar' : ''}">
+    <div data-r="coach">${coachCard()}</div>
+
     <div data-r="alerts">
     ${E.brokenItems(S).length ? `<div class="alert badline">
         ${icon('wrench')} Сломано: ${E.brokenItems(S).map(id => E.ITEMS[id].name).join(', ')}
@@ -928,65 +1093,56 @@ function viewDay(){
 
     <div class="day-grid">
       <section class="col sec-a">
-        <div data-r="machine">${truck ? `
-        <div class="card pad truck">
-          <div class="row-between">
-            <div><b class="ico-lead">${icon('truck')} Машина</b> <span class="muted small">${truck.left} посылок · <span data-live="truck-t">уедет через ${Math.max(0, truck.waitLeft)} мин</span></span></div>
-            <div class="row">
-              <button class="btn small primary" data-act="accept">Принять</button>
-              <button class="btn small" data-act="acceptAll">Всё</button>
-            </div>
-          </div>
-          <div class="bar thin"><i class="${truck.waitLeft < 60 ? 'danger' : 'warn'}" data-live="truck-bar" style="width:${pct(truck.waitLeft, 300)}%"></i></div>
-        </div>` : ''}</div>
+        <div data-r="machine">${coachCoversTruck() ? '' : truckCard(truck)}</div>
+        ${searchCard()}
+        ${queueCard()}
 
-        <div class="card pad" data-r="returns">
-          <div class="row-between">
-            <h3>${icon('returns')} Возвраты <span class="muted small">${S.returns.length}/${E.CFG.RET_CAP}</span></h3>
-            <span class="muted small">машина в 19:00</span>
+        <div class="card ${S.receiving.length ? 'pad' : 'tight'}" data-r="receiving">
+          <div class="sec-head" ${S.receiving.length ? '' : 'style="margin:0"'}>
+            <div class="sh-ico">${icon('inbox')}</div>
+            <div class="sh-t">Зона приёмки</div>
+            <div class="sh-meta"><b>${S.receiving.length}</b> / ${E.CFG.RECV_MAX}</div>
           </div>
-          ${S.returns.length ? `<div class="ret-row">${S.returns.map(r => `<span class="pk ret">${esc(r.code)}</span>`).join('')}</div>` : emptyBox('Пока пусто. Клиент с возвратом приходит сам.')}
-          ${S.minutes >= E.CFG.RET_HOUR_MIN && S.returns.length
-            ? `<button class="btn small" data-act="shipReturns">Отправить ${S.returns.length} шт. (+${S.returns.length * E.CFG.RET_SHIP_FEE} ₽)</button>`
-            : (S.returns.length ? `<div class="muted small">Отправятся сами в 19:00 · ${S.returns.length * E.CFG.RET_SHIP_FEE} ₽ за обработку</div>` : '')}
-        </div>
-
-        <div class="card pad" data-r="receiving">
-          <div class="row-between">
-            <h3>${icon('inbox')} Зона приёмки <span class="muted small">${S.receiving.length}/${E.CFG.RECV_MAX}</span></h3>
-            ${S.receiving.length ? `<button class="btn ghost small" data-act="placeAll">Разложить всё</button>` : ''}
-          </div>
-          ${S.receiving.length ? `<div class="chips wrap">${S.receiving.map(p => `
+          ${S.receiving.length ? `<div class="ret-row">${S.receiving.map(p => `
             <button class="pk ${U.selBox === p.id ? 'sel' : ''} ${p.fragile ? 'frag' : ''}" data-act="pickBox" data-id="${p.id}">
               ${p.code}<span class="sz">${p.size}</span>
-            </button>`).join('')}</div>`
-          : emptyBox('Пусто. Примите посылки из машины.')}
-          ${U.selBox ? `<div class="muted small">Выберите свободную ячейку (подсвечены). Хрупкое и КГТ — только в свою зону.</div>` : ''}
+            </button>`).join('')}</div>
+            <button class="btn small ghost" style="margin-top:10px" data-act="placeAll">Разложить всё</button>`
+          : `<div class="muted small" style="margin-top:8px">Пусто — примите посылки из машины.</div>`}
+          ${U.selBox ? `<div class="muted small" style="margin-top:8px">Выберите подсвеченную ячейку. Хрупкое и КГТ — только в свою зону.</div>` : ''}
+        </div>
+
+        <div class="card pad" data-r="shelves">
+          <div class="sec-head">
+            <div class="sh-ico">${icon('shelf')}</div>
+            <div class="sh-t">Стеллажи</div>
+            <div class="sh-meta"><b>${E.capacity(S).used}</b> / ${E.capacity(S).total} занято</div>
+          </div>
+          ${S.shelves.length ? S.shelves.map(sh => shelfView(sh)).join('') : `<div class="empty">Стеллажей нет — купите в магазине.</div>`}
         </div>
       </section>
 
       <section class="col sec-b">
-        <div class="card pad" data-r="queue">
-          <div class="row-between">
-            <h3>${icon('users')} Очередь <span class="muted small">${S.clients.length}</span></h3>
-            <span class="muted small">продавцов: ${S.staff.filter(s => s.role === 'seller').length}</span>
+        <div class="card pad" data-r="returns">
+          <div class="sec-head">
+            <div class="sh-ico">${icon('returns')}</div>
+            <div class="sh-t">Возвраты</div>
+            <div class="sh-meta"><b>${S.returns.length}</b> / ${E.CFG.RET_CAP} · машина в 19:00</div>
           </div>
-          ${S.clients.length ? `<div class="queue">${[...S.clients].sort((a,b) => a.patience - b.patience).slice(0, 8).map(c => clientCard(c)).join('')}</div>` : `<div class="empty small">Пока никого. Передохните.</div>`}
-          ${S.clients.length > 8 ? `<div class="muted small">и ещё ${S.clients.length - 8}…</div>` : ''}
-        </div>
-
-        <div class="card pad logcard" data-r="log">
-          <h3>${icon('activity')} Лента</h3>
-          <div class="log">${S.log.slice(0, 7).map(l => `<div class="logline ${l.type}"><span class="lt">${l.t ? String(Math.floor(l.t/60)+9).padStart(2,'0')+':'+String(l.t%60).padStart(2,'0') : ''}</span>${esc(l.text)}</div>`).join('')}</div>
+          ${S.returns.length ? `<div class="ret-row">${S.returns.map(r => `<span class="pk ret">${esc(r.code)}</span>`).join('')}</div>` : `<div class="empty">Пусто — клиент с возвратом приходит сам.</div>`}
+          ${S.minutes >= E.CFG.RET_HOUR_MIN && S.returns.length
+            ? `<button class="btn small primary" style="margin-top:10px" data-act="shipReturns">Отправить ${S.returns.length} шт. · +${S.returns.length * E.CFG.RET_SHIP_FEE} ₽</button>`
+            : (S.returns.length ? `<div class="muted small" style="margin-top:8px">Уедут сами в 19:00 · ${S.returns.length * E.CFG.RET_SHIP_FEE} ₽ за обработку</div>` : '')}
         </div>
 
         ${miniMap()}
-      </section>
 
-      <section class="col sec-c">
-        <div class="card pad" data-r="shelves">
-          <h3>${icon('shelf')} Стеллажи <span class="muted small">${cap.used}/${cap.total}</span></h3>
-          ${S.shelves.length ? S.shelves.map(sh => shelfView(sh)).join('') : `<div class="empty">Стеллажей нет. Купите в магазине (в фазе планирования).</div>`}
+        <div class="card pad logcard" data-r="log">
+          <div class="sec-head">
+            <div class="sh-ico">${icon('activity')}</div>
+            <div class="sh-t">Лента</div>
+          </div>
+          <div class="log">${S.log.slice(0, 7).map(l => `<div class="logline ${l.type}"><span class="lt">${l.t ? String(Math.floor(l.t/60)+9).padStart(2,'0')+':'+String(l.t%60).padStart(2,'0') : ''}</span>${esc(l.text)}</div>`).join('')}</div>
         </div>
       </section>
     </div>
@@ -994,8 +1150,7 @@ function viewDay(){
     ${ab}
 
     <div class="sticky-cta" data-r="cta">
-      <div class="muted small">${hintText()}</div>
-      <div class="row">
+      <div class="row" style="gap:8px">
         ${speedButtons()}
         <button class="btn ghost" data-act="endDayNow">Завершить день</button>
       </div>
@@ -1078,16 +1233,42 @@ function shelfView(sh){
   const label = E.ZONES[sh.kind] || '';
   const selC = U.selClient ? S.clients.find(c => c.id === U.selClient) : null;
   const loc = selC ? E.clientLocation(S, selC.id) : null;
+  const isTarget = loc && loc.shelfId === sh.id;
+  const open = !!U.selBox || isTarget || !!U.shelfOpen[sh.id];
 
-  return `
-  <div class="shelf">
-    <div class="shelf-head">
-      <span class="zone-tag z-${sh.kind}">${E.shelfName(S, sh.id).replace('Стеллаж ','Стеллаж ')} · ${label}</span>
-      <span class="muted small">${used}/${sh.cap} · <span class="ico-inline">${icon('pin')}${E.fetchMinutes(S, sh.id)} мин</span></span>
-    </div>
+  const strip = `<div class="sr-bar">${sh.cells.map((c, i) => {
+    const hint = U.selBox && !c;
+    const target = isTarget && loc.cellIdx === i;
+    return `<span class="sr-cell ${c ? 'on' : ''} ${hint || target ? 'hint' : ''}"></span>`;
+  }).join('')}</div>`;
+
+  if (!open){
+    return `<div class="shelf-row">
+      <button class="sr-top" data-act="shelfToggle" data-id="${sh.id}" style="width:100%; background:none; border:0; padding:0; color:inherit; font:inherit; text-align:left">
+        <span>${E.shelfName(S, sh.id)}</span>
+        <span class="sr-z">${label}</span>
+        <span class="sr-meta">
+          <span>${used}/${sh.cap}</span>
+          <span class="ico-inline">${icon('pin')}${E.fetchMinutes(S, sh.id)} мин</span>
+          ${icon('chevron')}
+        </span>
+      </button>
+      ${strip}
+    </div>`;
+  }
+
+  return `<div class="shelf-row open">
+    <button class="sr-top" data-act="shelfToggle" data-id="${sh.id}" style="width:100%; background:none; border:0; padding:0; color:inherit; font:inherit; text-align:left">
+      <span>${E.shelfName(S, sh.id)}</span>
+      <span class="sr-z">${label}</span>
+      <span class="sr-meta">
+        <span>${used}/${sh.cap}</span>
+        <span class="ico-inline">${icon('pin')}${E.fetchMinutes(S, sh.id)} мин</span>
+      </span>
+    </button>
     <div class="cells">
       ${sh.cells.map((cell, i) => {
-        const isLoc = loc && loc.shelfId === sh.id && loc.cellIdx === i;
+        const isLoc = isTarget && loc.cellIdx === i;
         return `<button class="cell ${cell ? 'full' : 'empty'} ${isLoc ? 'located' : ''}" data-act="cell" data-shelf="${sh.id}" data-idx="${i}"
           title="${cell ? cell.code + ' · ' + cell.size : 'пусто'}">${i + 1}</button>`;
       }).join('')}
@@ -1102,26 +1283,28 @@ function clientCard(c){
   const handsForMe = S.hands && c.code === S.hands.code;
   const patiencePct = pct(c.patience, c.maxPatience);
   const myTask = busy && busy.clientId === c.id;
+  const urg = patiencePct < 30 ? 'bad' : patiencePct < 60 ? 'warn' : '';
 
   if (c.returnItem){
-    const left = Math.max(0, Math.round(c.patience));
-    return `<div class="client return" data-act="takeReturn" data-id="${c.id}">
-      <div class="cl-tap static">
+    return `<div class="client return ${urg}">
+      <div class="cl-tap">
         <div class="cl-code">${icon('returns')} Возврат ${esc(c.returnCode)}</div>
-        <div class="muted small">Принёс посылку назад · <span data-live="patn:${c.id}">${left} мин</span></div>
-        <div class="bar"><i class="${patiencePct < 30 ? 'danger' : patiencePct < 60 ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
+        <div class="cl-sub">принёс посылку назад</div>
+        <div class="bar"><i class="${urg === 'bad' ? 'danger' : urg === 'warn' ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
       </div>
-      <button class="btn small serve" data-act="takeReturn" data-id="${c.id}">Принять</button>
+      <span class="cl-left ${urg}" data-live="patn:${c.id}" style="margin-right:6px">${Math.max(0, Math.round(c.patience))} мин</span>
+      <button class="btn serve ghost" data-act="takeReturn" data-id="${c.id}">Принять</button>
     </div>`;
   }
 
   if (c.consult){
-    return `<div class="client consult" data-act="consult" data-id="${c.id}">
-      <div class="cl-tap static">
-        <div class="cl-code">Вопрос</div>
-        <div class="muted small">Клиент с вопросом</div>
+    return `<div class="client ${urg}">
+      <div class="cl-tap">
+        <div class="cl-code">${icon('help')} Вопрос в зале</div>
+        <div class="cl-sub">клиент ждёт консультации</div>
+        <div class="bar"><i class="${urg === 'bad' ? 'danger' : urg === 'warn' ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
       </div>
-      <button class="btn small" data-act="consult" data-id="${c.id}">Ответить</button>
+      <button class="btn serve ghost" data-act="consult" data-id="${c.id}">Ответить</button>
     </div>`;
   }
 
@@ -1130,20 +1313,21 @@ function clientCard(c){
              + (c.tryon ? '<span class="tag">примерка</span>' : '');
 
   let action = '';
-  if (myTask) action = '<div class="cl-act">в пути…</div>';
-  else if (handsForMe) action = `<button class="btn small primary" data-act="give" data-id="${c.id}">Выдать</button>`;
-  else if (sel && loc) action = `<button class="btn small primary" data-act="fetch" data-id="${c.id}">Взять</button>`;
-  else if (sel) action = `<div class="cl-act">нет на полке</div>`;
-  else action = `<button class="btn small serve" data-act="pickClient" data-id="${c.id}">Обслужить</button>`;
+  if (myTask) action = `<div class="cl-act small" style="color:var(--txt-3); font-weight:700">в пути…</div>`;
+  else if (handsForMe) action = `<button class="btn serve" data-act="give" data-id="${c.id}">Выдать</button>`;
+  else if (sel && loc) action = `<button class="btn serve" data-act="fetch" data-id="${c.id}">Взять</button>`;
+  else if (sel) action = `<div class="cl-act small" style="color:var(--bad); font-weight:700">нет на полке</div>`;
+  else action = `<button class="btn serve ${urg === 'bad' ? '' : 'ghost'}" data-act="pickClient" data-id="${c.id}">Обслужить</button>`;
 
-  return `<div class="client ${sel ? 'sel' : ''} ${c.type} ${handsForMe ? 'ready' : ''}" data-act="pickClient" data-id="${c.id}">
+  return `<div class="client ${sel ? 'sel' : ''} ${urg} ${handsForMe ? 'ready' : ''}">
     <button class="cl-tap" data-act="pickClient" data-id="${c.id}">
-      <div class="cl-code">${c.code} ${tags}<span class="cl-left ${patiencePct < 30 ? 'bad' : patiencePct < 60 ? 'warn' : ''}" data-live="patn:${c.id}">${Math.max(0, Math.round(c.patience))} мин</span></div>
-      <div class="bar"><i class="${patiencePct < 30 ? 'danger' : patiencePct < 60 ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
+      <div class="cl-code">${c.code} ${tags}</div>
+      <div class="bar"><i class="${urg === 'bad' ? 'danger' : urg === 'warn' ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
       ${sel && loc ? `<div class="cl-addr">${icon('pin')} ${esc(loc.address)}</div>` : ''}
-      ${sel && !loc && !handsForMe ? `<div class="cl-addr bad">Посылки нет на полке</div>` : ''}
-      ${myTask ? `<div class="cl-addr">${busy.kind === 'fetch' ? 'Иду за посылкой' : 'Отдаю заказ'} · <span data-live="clt:${c.id}">${busy.t}</span> мин</div>` : ''}
+      ${sel && !loc && !handsForMe ? `<div class="cl-addr bad">посылки нет на полке</div>` : ''}
+      ${myTask ? `<div class="cl-addr">${busy.kind === 'fetch' ? 'иду за посылкой' : 'отдаю заказ'} · <span data-live="clt:${c.id}">${busy.t}</span> мин</div>` : ''}
     </button>
+    <span class="cl-left ${urg}" data-live="patn:${c.id}">${Math.max(0, Math.round(c.patience))} мин</span>
     ${action}
   </div>`;
 }
@@ -1152,41 +1336,69 @@ function clientCard(c){
 function viewReport(){
   const r = S.report || { ds:S.dayStats, costs:0, avgSla:0, missedRate:0, p:E.premOf(S) };
   const ds = r.ds;
-  const rows = [
-    ['Выручка за заказы', ds.revenue, 'good'],
-    ['Чаевые', ds.tips, 'good'],
-    ds.events ? ['События дня', ds.events, ds.events > 0 ? 'good' : 'bad'] : null,
-    ['Аренда', -ds.rent, 'bad'],
-    ['Зарплаты', -ds.payroll, 'bad'],
-    ['Коммуналка', -ds.util, 'bad'],
-    ['Штрафы', -ds.fines, 'bad'],
-    ds.loan ? ['Кредит', -ds.loan, 'bad'] : null,
-    ds.tax ? ['Налог', -ds.tax, 'bad'] : null,
+  const good = ds.net >= 0;
+  const income = [
+    ['bag', 'Выручка за заказы', ds.revenue],
+    ['star', 'Чаевые', ds.tips],
+    ds.events ? ['sparkle', 'События дня', ds.events] : null,
   ].filter(Boolean);
+  const spend = [
+    ['store', 'Аренда', -ds.rent],
+    ['users', 'Зарплаты', -ds.payroll],
+    ['zap', 'Коммуналка', -ds.util],
+    ['alert', 'Штрафы', -ds.fines],
+    ds.loan ? ['card', 'Кредит', -ds.loan] : null,
+    ds.tax ? ['flag', 'Налог', -ds.tax] : null,
+    ds.repairs ? ['wrench', 'Ремонт техники', -ds.repairs] : null,
+  ].filter(Boolean);
+
+  const row = ([ico, label, val]) => `<div class="pnl-row">
+      <span class="pl-ico">${icon(ico)}</span>
+      <span class="pl-l">${label}</span>
+      <b class="${val === 0 ? 'muted' : val > 0 ? 'good' : 'bad'}">${val === 0 ? '0 ₽' : (val > 0 ? '+' : '−') + fmt(Math.abs(val)) + ' ₽'}</b>
+    </div>`;
 
   return `
   ${viewHud()}
   <main class="wrap">
-    <section class="card pad" data-r="rep">
+    <section class="card hero pad" data-r="rep">
       <div class="kicker">Итоги дня</div>
-      <h2>День ${S.day}</h2>
-      <div class="report-grid">
-        <div class="rn"><b>${ds.issued}</b><span>выдано</span></div>
-        <div class="rn"><b class="${ds.missed ? 'bad' : ''}">${ds.missed}</b><span>упущено</span></div>
-        <div class="rn"><b>${Math.round(r.avgSla) || 0} мин</b><span>средняя выдача</span></div>
-        <div class="rn"><b>${S.nps.toFixed(2)}</b><span>NPS</span></div>
+      <h2 class="brief-day">День ${S.day}</h2>
+      <div class="rep-net ${good ? 'good' : 'bad'}">
+        <div class="rn-l">${good ? icon('zap') : icon('alert')} ${good ? 'Прибыль за день' : 'Убыток за день'}</div>
+        <div class="rn-v">${ds.net > 0 ? '+' : ''}${fmt(ds.net)} <small>₽</small></div>
       </div>
-      <div class="pnl">${rows.map(([label, val, cls]) => `
-        <div class="pnl-row"><span>${label}</span><b class="${val === 0 ? 'muted' : cls}">${val === 0 ? '0 ₽' : (val > 0 ? '+' : '') + fmt(val) + ' ₽'}</b></div>`).join('')}
-        <div class="pnl-row total"><span>Итого за день</span><b class="${ds.net >= 0 ? 'good' : 'bad'}">${ds.net > 0 ? '+' : ''}${fmt(ds.net)} ₽</b></div>
+      <div class="tiles" style="margin-top:12px">
+        ${tile('', 'check', 'выдано', ds.issued)}
+        ${tile(ds.missed ? 'bad' : 'good', 'users', 'упущено', ds.missed)}
+        ${tile('', 'star', 'NPS', S.nps.toFixed(2))}
       </div>
-      ${ds.onPrepay ? `<div class="muted small" style="margin-bottom:6px">${icon('manager')} ${ds.onPrepay} сотрудник(ов) работают за счёт аванса — зарплата за них не списывалась.</div>` : ''}
-      ${(ds.returned || ds.packed || ds.shipped) ? `<div class="muted small ico-inline" style="margin:6px 0 2px; display:flex; gap:12px; flex-wrap:wrap">
-        ${ds.returned ? `<span>${icon('returns')} принято возвратов: ${ds.returned}</span>` : ''}
-        ${ds.shipped ? `<span>${icon('truck')} отправлено: ${ds.shipped}</span>` : ''}
-        ${ds.packed ? `<span>${icon('pack')} упаковано заказов: ${ds.packed}</span>` : ''}
-      </div>` : ''}
-      <div class="muted small">${reportAdvice(r)}</div>
+      <div class="tiles" style="margin-top:8px; grid-template-columns:1fr 1fr">
+        ${tile('', 'clock', 'средняя выдача', (Math.round(r.avgSla) || 0), 'мин')}
+        ${tile('', 'returns', 'возвратов', ds.returned || 0)}
+      </div>
+    </section>
+
+    <section class="card pad" data-r="pnl">
+      <div class="sec-head">
+        <div class="sh-ico">${icon('chart')}</div>
+        <div class="sh-t">Деньги</div>
+        <div class="sh-meta">расходы <b>${fmt(r.costs)}</b> ₽</div>
+      </div>
+      <div class="pnl">${income.map(row).join('')}${spend.map(row).join('')}</div>
+      <div class="pnl-total">
+        <span>Итого за день</span>
+        <b class="${good ? 'good' : 'bad'}">${ds.net > 0 ? '+' : ''}${fmt(ds.net)} ₽</b>
+      </div>
+      ${ds.onPrepay ? `<div class="muted small" style="margin-top:8px">${ds.onPrepay} сотрудник(ов) работают за счёт аванса — зарплата не списывалась.</div>` : ''}
+    </section>
+
+    <section class="card pad advice" data-r="advice">
+      <div class="sec-head">
+        <div class="sh-ico">${icon('sparkle')}</div>
+        <div class="sh-t">Что улучшить</div>
+      </div>
+      <div class="adv-text">${reportAdvice(r)}</div>
     </section>
 
     ${S.over ? `<section class="card pad gameover">
@@ -1195,8 +1407,7 @@ function viewReport(){
         <p class="muted small">Прожито дней: ${S.day}. Выдано заказов: ${S.history.reduce((a,h)=>a+h.issued,0)}. Финальный уровень: ${S.lvl}.</p>
         <button class="btn primary big" data-act="restart">Начать заново</button>
       </section>`
-    : `<div class="sticky-cta">
-        <div class="muted small">${hintText()}</div>
+    : `<div class="sticky-cta" data-r="cta">
         <button class="btn primary big" data-act="nextDay">Следующий день ${icon('chevron')}</button>
       </div>`}
   </main>`;
@@ -1397,6 +1608,57 @@ async function act(type, d){
       if (!c) { toast('Некого обслуживать', 'bad'); break; }
       if (c.returnItem) act('takeReturn', { id: c.id });
       else { U.selClient = c.id; U.selBox = null; beep(680,0.05); }
+      break;
+    }
+    case 'noop': break;
+    case 'shelfToggle': {
+      U.shelfOpen[d.id] = !U.shelfOpen[d.id];
+      render();
+      break;
+    }
+    case 'findOrder': {
+      const inp = document.querySelector('#order-q');
+      const raw = inp ? inp.value : '';
+      const res = E.findByCode(S, raw);
+      if (!res){ toast('Такого кода нет в пункте', 'bad'); break; }
+      if (res.kind === 'client'){
+        U.selClient = res.client.id;
+        if (res.loc) toast(`Клиент ${res.client.code} · ${res.loc.address}`, 'good');
+        else toast(`Клиент ${res.client.code} найден`, 'good');
+      } else if (res.kind === 'receiving'){
+        U.selBox = res.pkg.id;
+        toast(`Посылка ${res.pkg.code} в зоне приёмки`, 'good');
+      } else if (res.kind === 'shelf'){
+        U.shelfOpen[res.shelf.id] = true;
+        toast(`${res.pkg.code} · ${E.shelfName(S, res.shelf.id)} · ячейка ${res.idx + 1}`, 'good');
+      } else if (res.kind === 'return'){
+        toast(`Возврат ${res.ret.code} на стойке`, 'good');
+      }
+      if (inp) inp.value = '';
+      render();
+      break;
+    }
+    case 'repairAll': {
+      const broken = E.brokenItems(S);
+      let done = 0, spent = 0;
+      for (const id of broken){
+        const r = E.repair(S, id);
+        if (r.ok){ done++; spent += r.cost; }
+      }
+      if (done) toast(`Отремонтировано ${done} · −${fmt(spent)} ₽`, 'good');
+      else toast('Не хватает денег на ремонт', 'bad');
+      break;
+    }
+    case 'preset': {
+      const r = E.applyPreset(S, d.id);
+      if (r.ok){ U.preset = d.id; toast(`Схема «${E.LAYOUT_PRESETS[d.id].name}»`, 'good'); }
+      else toast(r.msg || 'Не вышло', 'bad');
+      break;
+    }
+    case 'bundle': {
+      const r = E.buyBundle(S, d.id);
+      if (r.ok) toast(`Набор собран · −${fmt(r.cost)} ₽`, 'good');
+      else toast(r.msg || 'Нельзя', 'bad');
       break;
     }
     case 'skipSplash': {

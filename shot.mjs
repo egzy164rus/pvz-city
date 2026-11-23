@@ -32,7 +32,7 @@ async function shoot(name, width, height, isMobile){
   }
   await tap('[data-act="tab"][data-id="layout"]');
   await page.waitForTimeout(250);
-  await tap('[data-act="autoLayout"]');
+  await tap('[data-act="preset"][data-id="fast"]');
   await page.waitForTimeout(250);
   await page.screenshot({ path:`shots/${name}-3layout.png`, fullPage:true });
 

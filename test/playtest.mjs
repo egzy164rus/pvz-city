@@ -36,7 +36,7 @@ await page.waitForTimeout(200);
 // расстановка зала
 await tap('[data-act="tab"][data-id="layout"]');
 await page.waitForTimeout(200);
-await tap('[data-act="autoLayout"]');
+await tap('[data-act="preset"][data-id="fast"]');
 await page.waitForTimeout(300);
 
 await tap('[data-act="startDay"]');
@@ -93,9 +93,12 @@ for (let step = 0; step < 900; step++){
   else if (state.accept) { await tap('[data-act="acceptAll"]'); }
 }
 
-const reportText = await page.evaluate(() => document.querySelector('.report-grid')?.innerText.replace(/\n/g,' | '));
+const reportText = await page.evaluate(() => {
+  const el = document.querySelector('[data-r="rep"] .tiles');
+  return el ? [...el.querySelectorAll('.tile')].map(t => t.innerText.replace(/\n/g, ' ')).join(' | ') : null;
+});
 const money = await page.evaluate(() => window.__pvz.state().money);
-const sum = await page.evaluate(() => document.querySelector('.pnl-row.total')?.innerText.replace(/\n/g,' '));
+const sum = await page.evaluate(() => document.querySelector('.pnl-total')?.innerText.replace(/\n/g, ' '));
 
 console.log('событий в дне:', eventSeen);
 console.log('отчёт:', reportText);
@@ -106,7 +109,7 @@ console.log('ошибки:', errors.length ? errors : 'нет');
 // второй день
 await tap('[data-act="nextDay"]');
 await page.waitForTimeout(400);
-const plan = await page.evaluate(() => !!document.querySelector('.day-brief'));
+const plan = await page.evaluate(() => !!document.querySelector('.brief-day'));
 console.log('переход в день 2:', plan);
 await page.screenshot({ path:'shots/playtest-day2.png', fullPage:false });
 await browser.close();

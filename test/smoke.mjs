@@ -38,6 +38,7 @@ check('кнопка «Начать игру»', !!q('[data-act="welcomeNew"]'));
 clickAct('welcomeNew');
 await sleep(150);
 
+const st = () => window.__pvz.state();
 console.log('1. Онбординг');
 check('стартовый экран отрисован', !!q('.start'));
 check('3 бренда', qa('[data-act="pickBrand"]').length === 3);
@@ -47,8 +48,8 @@ clickAct('startGame');
 await sleep(200);
 
 console.log('2. Планирование');
-check('экран планирования', !!q('.day-brief'));
-check('прогноз отрисован', qa('.fbar').length === 12);
+check('экран планирования', !!q('.brief-day'));
+check('прогноз отрисован', !!q('.flow svg'));
 const moneyBefore = q('.m-val').textContent;
 
 // покупки
@@ -75,11 +76,10 @@ check('есть нерасставленные предметы', pal.length > 0
 // расставляем вручную: стойка в 0,0
 if (pal.length){ click(pal[0]); await sleep(120); const c0 = q('.rcell[data-x="0"][data-y="0"]'); if (c0) click(c0); await sleep(150); }
 check('предмет поставлен', qa('.rfix').length > 0, qa('.rfix').length + ' в зале');
-clickAct('autoLayout');
+clickAct('preset', '[data-id="fast"]');
 await sleep(200);
 check('авторасстановка убрала остаток', qa('[data-act="pickItem"]').length === 0);
 // перенос мебели
-const st = () => window.__pvz.state();
 const before = st().fixtures[0].x + ',' + st().fixtures[0].y;
 click(q('.rfix')); await sleep(120);
 click(q('.rcell[data-x="6"][data-y="5"]')); await sleep(200);
@@ -90,8 +90,13 @@ console.log('3. День');
 clickAct('startDay');
 await sleep(250);
 check('экран дня', !!q('.day-grid'));
-check('стеллаж отрисован', qa('.cell').length >= 16, qa('.cell').length + ' ячеек');
-check('у стеллажа показано время ходьбы', /мин/.test(q('.shelf-head')?.textContent || ''));
+check('стеллаж отрисован', qa('.sr-cell').length >= 16, qa('.sr-cell').length + ' ячеек');
+clickAct('shelfToggle', '[data-id="' + (st().shelves[0] || {}).id + '"]');
+await sleep(150);
+check('стеллаж раскрывается до ячеек', qa('.cell').length >= 16, qa('.cell').length + ' шт.');
+clickAct('shelfToggle', '[data-id="' + (st().shelves[0] || {}).id + '"]');
+await sleep(120);
+check('у стеллажа показано время ходьбы', /мин/.test(q('.shelf-row')?.textContent || ''));
 check('мини-карта зала есть', !!q('.mm-room'), qa('.mm-fix').length + ' предметов на карте');
 check('человечек на карте', !!q('.mm-token'));
 
@@ -108,7 +113,8 @@ if (truck){
   const pa = q('[data-act="placeAll"]');
   if (pa) click(pa);
   await sleep(250);
-  check('посылки разложены', qa('.cell.full').length > 0, qa('.cell.full').length + ' занято');
+  const placed = st().shelves.reduce((a, sh) => a + sh.cells.filter(Boolean).length, 0);
+  check('посылки разложены', placed > 0, placed + ' занято');
 }
 
 // ждём клиента: выбрать → узнать адрес → взять → выдать
@@ -154,7 +160,7 @@ check('отчёт дня', !!q('.pnl'), q('.pnl') ? 'есть P&L' : 'нет');
 const nextBtn = q('[data-act="nextDay"]');
 check('кнопка следующего дня', !!nextBtn);
 if (nextBtn){ click(nextBtn); await sleep(300); }
-check('вернулись в планирование', !!q('.day-brief'));
+check('вернулись в планирование', !!q('.brief-day'));
 
 console.log('5. Сохранение');
 const saved = window.localStorage.getItem('pvz_save_v1');

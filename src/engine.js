@@ -1599,3 +1599,147 @@ export function dayLabel(S){
 }
 
 export const ZONES = ZONE_LABEL;
+
+/* ============================================================
+   Быстрые механики: схемы расстановки, наборы закупок, поиск заказа
+   ============================================================ */
+
+export const LAYOUT_PRESETS = {
+  fast:    { name:'Быстрая выдача', desc:'полки ближе к стойке — меньше ходьбы', ico:'zap' },
+  compact: { name:'Компакт',        desc:'плотно в угол — больше проходов',      ico:'layout' },
+  stock:   { name:'Склад',          desc:'полки в глубине — свободный зал',      ico:'shelf' },
+};
+
+/* опорная точка: стойка, иначе вход (низ зала) */
+function anchorPoint(S){
+  const c = S.fixtures.find(f => f.itemId === 'counter');
+  if (c) return [c.x + c.w / 2, c.y + c.h / 2];
+  return [S.grid.w / 2, S.grid.h];
+}
+
+/* позиции для поиска места, отсортированные под выбранную схему */
+function presetPositions(S, kind){
+  const [ax, ay] = anchorPoint(S);
+  const list = [];
+  for (let y = 0; y < S.grid.h; y++){
+    for (let x = 0; x < S.grid.w; x++){
+      const d = Math.hypot(x - ax, y - ay);
+      let score;
+      if (kind === 'fast') score = d;                                  // ближе к стойке — первым
+      else if (kind === 'stock') score = -d;                           // дальше — первым
+      else score = y * S.grid.w + x;                                   // плотно от угла
+      list.push({ x, y, score });
+    }
+  }
+  return list.sort((a, b) => a.score - b.score);
+}
+
+/* расставить купленное и подвинуть пустые стеллажи по схеме */
+export function applyPreset(S, kind){
+  if (S.phase !== 'plan') return { ok:false, msg:'Только до начала дня' };
+  const positions = presetPositions(S, kind);
+  const prio = id => {
+    const it = ITEMS[id];
+    if (id === 'counter') return 0;
+    if (it && it.cap) return 1;
+    if (it && it.physical && it.size.w * it.size.h >= 4) return 2;
+    return 3;
+  };
+
+  let placed = 0, moved = 0;
+
+  // 1) купленное, но не расставленное
+  const pending = [...S.unplaced].sort((a, b) => prio(a) - prio(b));
+  for (const id of pending){
+    const it = ITEMS[id];
+    if (!it || !it.physical) continue;
+    for (const pos of positions){
+      if (canPlaceAt(S, it.size.w, it.size.h, pos.x, pos.y)){
+        if (placeFixture(S, id, pos.x, pos.y).ok){ placed++; break; }
+      }
+    }
+  }
+
+  // 2) уже стоящие пустые полки — подвинуть под схему
+  const movable = S.fixtures
+    .filter(f => {
+      if (!f.shelfId) return false;
+      const sh = S.shelves.find(x => x.id === f.shelfId);
+      return sh && !sh.cells.some(Boolean);
+    })
+    .sort((a, b) => prio(a.itemId) - prio(b.itemId));
+
+  for (const f of movable){
+    for (const pos of positions){
+      if (pos.x === f.x && pos.y === f.y) break;
+      if (canPlaceIgnoring(S, f, f.w, f.h, pos.x, pos.y)){
+        if (moveFixture(S, f.id, pos.x, pos.y).ok){ moved++; break; }
+      }
+    }
+  }
+
+  pushLog(S, moved || placed
+    ? `Схема «${LAYOUT_PRESETS[kind].name}»: расставлено ${placed}, переставлено ${moved}.`
+    : `Схема «${LAYOUT_PRESETS[kind].name}»: менять нечего.`, 'info');
+  return { ok:true, placed, moved };
+}
+
+/* ---------- наборы закупок ---------- */
+export const BUNDLES = {
+  start:   { name:'Стартовый', ico:'store',  items:['counter', 'banner', 'light'],      desc:'минимум для брендбука' },
+  flow:    { name:'Поток',     ico:'coffee', items:['coffee', 'sofa', 'music'],         desc:'больше людей и терпения' },
+  service: { name:'Сервис',    ico:'card',   items:['scanner', 'printer', 'terminal'],  desc:'быстрая и дорогая выдача' },
+};
+export const BUNDLE_DISCOUNT = 0.1;
+
+export function bundleQuote(S, key){
+  const b = BUNDLES[key];
+  if (!b) return null;
+  const missing = b.items.filter(id => !(S.owned[id] > 0));
+  const full = missing.reduce((a, id) => a + ITEMS[id].cost, 0);
+  const cost = Math.round(full * (1 - BUNDLE_DISCOUNT) / 50) * 50;
+  const locked = b.items.some(id => (S.lvl || 1) < ITEMS[id].lvl);
+  return { key, name:b.name, items:b.items, missing, desc:b.desc, ico:b.ico,
+           full, cost, save:full - cost, locked, ok: missing.length > 0 && !locked };
+}
+
+export function buyBundle(S, key){
+  if (S.phase !== 'plan') return { ok:false, msg:'Закупки — до начала дня' };
+  const q = bundleQuote(S, key);
+  if (!q) return { ok:false, msg:'Нет такого набора' };
+  if (q.locked) return { ok:false, msg:'Часть набора откроется с новым уровнем' };
+  if (!q.missing.length) return { ok:false, msg:'Набор уже собран' };
+  if (S.money < q.cost) return { ok:false, msg:`Нужно ${fmt(q.cost)} ₽` };
+  S.money -= q.cost;
+  for (const id of q.missing){
+    S.owned[id] = (S.owned[id] || 0) + 1;
+    if (ITEMS[id].physical) S.unplaced.push(id);
+  }
+  recalcForecast(S);
+  pushLog(S, `Набор «${q.name}»: ${q.missing.map(id => ITEMS[id].name).join(', ')} за ${fmt(q.cost)} ₽ (экономия ${fmt(q.save)} ₽)`, 'buy');
+  return { ok:true, cost:q.cost, items:q.missing };
+}
+
+/* ---------- поиск заказа по коду ---------- */
+export function findByCode(S, raw){
+  const q = String(raw || '').trim().toUpperCase().replace(/\s+/g, '');
+  if (!q) return null;
+  const norm = c => String(c || '').toUpperCase().replace(/\s+/g, '');
+  // клиент в очереди
+  const client = S.clients.find(c => !c.returnItem && norm(c.code).includes(q));
+  if (client) return { kind:'client', client, loc: clientLocation(S, client.id) };
+  // посылка в зоне приёмки
+  const pkg = S.receiving.find(p => norm(p.code).includes(q));
+  if (pkg) return { kind:'receiving', pkg };
+  // посылка на полке
+  for (const sh of S.shelves){
+    for (let i = 0; i < sh.cells.length; i++){
+      const p = sh.cells[i];
+      if (p && norm(p.code).includes(q)) return { kind:'shelf', pkg:p, shelf: sh, idx:i };
+    }
+  }
+  // возврат
+  const ret = S.returns.find(r => norm(r.code).includes(q));
+  if (ret) return { kind:'return', ret };
+  return null;
+}

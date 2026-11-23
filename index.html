@@ -1039,6 +1039,345 @@ h2.sec{margin:26px 0 10px; font-size:12px; text-transform:uppercase; letter-spac
   .splash-title{ font-size:31px; margin-top:14px }
 }
 
+/* ============================================================
+   ВИЗУАЛ 2.0 — единая система: воздух, иерархия, акцент
+   ============================================================ */
+:root{
+  --sp1:6px; --sp2:10px; --sp3:14px; --sp4:18px; --sp5:24px; --sp6:32px;
+  --r-sm:12px; --r-md:16px; --r-lg:20px;
+  --panel-hi: rgba(255,255,255,.055);
+  --panel-lo: rgba(255,255,255,.018);
+  --txt-2:#a9b7d0; --txt-3:#71819d;
+}
+html{ -webkit-text-size-adjust:100% }
+body{
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  letter-spacing:-.006em;
+}
+h1,h2,h3{ letter-spacing:-.022em }
+.muted{ color:var(--txt-3) }
+.small.muted{ color:var(--txt-3) }
+
+/* ---- карточки ---- */
+.card{
+  background:linear-gradient(180deg, var(--panel-hi), var(--panel-lo));
+  border:1px solid var(--line); border-radius:var(--r-lg);
+  box-shadow:0 1px 0 rgba(255,255,255,.045) inset, 0 24px 48px -40px #000;
+}
+.card.pad{padding:var(--sp4)}
+.card.hero{
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 62%),
+    linear-gradient(180deg, var(--panel-hi), var(--panel-lo));
+  border-color:color-mix(in srgb, var(--accent) 26%, var(--line));
+}
+.card.tight{padding:var(--sp3)}
+.card.flush{padding:0; overflow:hidden}
+
+/* ---- заголовок секции ---- */
+.sec-head{display:flex; align-items:center; gap:10px; margin:0 0 var(--sp3)}
+.sec-head .sh-ico{
+  width:30px; height:30px; border-radius:10px; display:grid; place-items:center; flex-shrink:0;
+  background:color-mix(in srgb, var(--accent) 16%, rgba(255,255,255,.03));
+  border:1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+  color:color-mix(in srgb, var(--accent) 70%, #fff);
+}
+.sec-head .sh-ico .i{ width:15px; height:15px }
+.sec-head h3, .sec-head .sh-t{
+  margin:0; font-size:13px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+  color:#dbe4f5; line-height:1.2;
+}
+.sec-head .sh-meta{ margin-left:auto; font-size:12px; color:var(--txt-3); font-weight:600; text-align:right }
+.sec-head .sh-meta b{ color:#dfe8fa }
+
+/* ---- плитки-показатели ---- */
+.tiles{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px}
+.tile{
+  padding:12px 12px 11px; border-radius:14px; text-align:left;
+  background:rgba(255,255,255,.035); border:1px solid var(--line);
+}
+.tile .t-lbl{ display:flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--txt-3) }
+.tile .t-lbl .i{ width:12px; height:12px }
+.tile .t-val{ font-size:23px; font-weight:820; line-height:1.15; margin-top:5px; font-variant-numeric:tabular-nums;
+  color:#f2f6ff; letter-spacing:-.03em }
+.tile .t-val small{ font-size:12px; font-weight:700; color:var(--txt-3); margin-left:2px }
+.tile.warn .t-val{ color:#ffcf8a }
+.tile.bad .t-val{ color:#ff9d9d }
+.tile.good .t-val{ color:#7cf0bb }
+
+/* ---- поток ---- */
+.flow{ position:relative; height:104px; margin-top:14px; border-radius:14px; overflow:hidden;
+  background:linear-gradient(180deg, rgba(255,255,255,.03), transparent); border:1px solid var(--line) }
+.flow svg{ position:absolute; inset:0; width:100%; height:100% }
+.flow .fl-lbl{ position:absolute; left:10px; right:10px; bottom:6px; display:flex; justify-content:space-between;
+  font-size:9.5px; color:var(--txt-3); font-weight:700; letter-spacing:.04em }
+.flow .fl-peak{ position:absolute; top:7px; font-size:10px; font-weight:750; color:#cfe0ff;
+  padding:2px 7px; border-radius:99px; background:rgba(10,16,28,.75); border:1px solid var(--line) }
+
+/* ---- KPI ---- */
+.kpi-row{
+  display:grid; grid-template-columns:14px 1fr auto auto; gap:10px; align-items:center;
+  font-size:13.5px; padding:9px 0; border-bottom:1px solid rgba(255,255,255,.055);
+}
+.kpi-row:last-child{border-bottom:0}
+.kpi-row .kd{ width:7px; height:7px; border-radius:50%; background:var(--good); box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 18%, transparent) }
+.kpi-row .kd.warn{ background:var(--warn); box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 18%, transparent) }
+.kpi-row .kd.bad{ background:var(--bad); box-shadow:0 0 0 3px color-mix(in srgb,var(--bad) 18%, transparent) }
+.kpi-row .kv{ font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.02em }
+.kpi-row .kt{ color:var(--txt-3); font-size:12px; font-weight:600 }
+
+/* ---- очередь ---- */
+.queue{display:flex; flex-direction:column; gap:9px}
+.client{
+  position:relative; display:flex; align-items:center; gap:10px; padding:12px 12px 12px 14px;
+  border-radius:15px; background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  border:1px solid var(--line); overflow:hidden;
+}
+.client::before{
+  content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:var(--good);
+}
+.client.warn::before{ background:var(--warn) }
+.client.bad::before{ background:var(--bad) }
+.client .cl-tap{ flex:1; min-width:0 }
+.client .cl-code{ display:flex; align-items:center; gap:7px; font-size:15px; font-weight:800; letter-spacing:-.01em }
+.client .cl-code .i{ width:15px; height:15px }
+.client .cl-left{ font-size:11.5px; font-weight:750; color:var(--txt-3); margin-left:auto }
+.client .cl-left.warn{ color:#ffc078 } .client .cl-left.bad{ color:#ff9c9c }
+.client .bar{ height:4px; margin-top:7px }
+.client .btn.serve{
+  min-width:104px; min-height:44px; border-radius:12px; font-weight:750;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent2));
+  border-color:transparent; color:#fff;
+  box-shadow:0 1px 0 rgba(255,255,255,.3) inset, 0 10px 22px -14px color-mix(in srgb, var(--accent) 90%, transparent);
+}
+.client .btn.serve.ghost{ background:rgba(255,255,255,.05); color:var(--text); border-color:var(--line-strong); box-shadow:none }
+.tag{ font-size:10.5px; font-weight:750; padding:2px 7px; border-radius:99px; letter-spacing:.02em;
+  background:rgba(255,255,255,.08); color:#c3cfe4; border:1px solid var(--line) }
+.tag.bad{ background:color-mix(in srgb,var(--bad) 18%, transparent); color:#ffc0c0; border-color:color-mix(in srgb,var(--bad) 30%, transparent) }
+
+/* ---- машина ---- */
+.truck-card{
+  display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:18px;
+  background:
+    radial-gradient(120% 160% at 100% 0%, color-mix(in srgb, var(--warn) 30%, transparent), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border:1px solid color-mix(in srgb, var(--warn) 34%, var(--line));
+}
+.truck-card .tc-ico{ animation:truckIn .28s ease both }
+@keyframes truckIn{ from{opacity:0; transform:translateY(-6px)} to{opacity:1; transform:none} }
+.truck-card .tc-ico{ width:42px; height:42px; border-radius:13px; display:grid; place-items:center; flex-shrink:0;
+  background:color-mix(in srgb, var(--warn) 22%, transparent); color:#ffd7a1;
+  border:1px solid color-mix(in srgb, var(--warn) 34%, transparent) }
+.truck-card .tc-ico .i{ width:20px; height:20px }
+.truck-card .tc-t{ font-size:15px; font-weight:800; letter-spacing:-.01em }
+.truck-card .tc-s{ font-size:12px; color:#e0c9a6; font-weight:600; margin-top:2px }
+.truck-card .tc-act{ margin-left:auto; display:flex; gap:8px }
+
+/* ---- коуч «сейчас» ---- */
+.coach{
+  display:flex; align-items:center; gap:12px; padding:13px 14px; border-radius:18px;
+  background:linear-gradient(100deg, color-mix(in srgb, var(--accent) 20%, rgba(255,255,255,.02)), rgba(255,255,255,.02) 70%);
+  border:1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+}
+.coach .co-n{
+  width:26px; height:26px; border-radius:9px; display:grid; place-items:center; flex-shrink:0;
+  font-size:13px; font-weight:850; color:#0b1220;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 60%, #fff), var(--accent));
+}
+.coach .co-t{ font-size:13.5px; font-weight:750; line-height:1.25 }
+.coach .co-s{ font-size:12px; color:var(--txt-3); margin-top:2px; line-height:1.3 }
+.coach .btn{ margin-left:auto; flex-shrink:0; min-height:42px; border-radius:12px }
+
+/* ---- компактные стеллажи ---- */
+.shelf-row{ padding:11px 0; border-bottom:1px solid rgba(255,255,255,.05) }
+.shelf-row:last-child{ border-bottom:0 }
+.shelf-row .sr-top{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700 }
+.shelf-row .sr-top .sr-z{ font-size:10.5px; font-weight:750; color:var(--txt-3); letter-spacing:.04em; text-transform:uppercase }
+.shelf-row .sr-meta{ margin-left:auto; display:flex; align-items:center; gap:10px; font-size:11.5px; color:var(--txt-3); font-weight:650 }
+.shelf-row .sr-bar{ display:flex; gap:3px; margin-top:8px }
+.shelf-row .sr-cell{ flex:1; height:9px; border-radius:3px; background:rgba(255,255,255,.07) }
+.shelf-row .sr-cell.on{ background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 80%, #fff 10%), var(--accent)); }
+.shelf-row .sr-cell.hint{ background:color-mix(in srgb, var(--good) 55%, transparent); animation:cellPulse 1.4s ease-in-out infinite }
+@keyframes cellPulse{ 0%,100%{opacity:.55} 50%{opacity:1} }
+
+/* ---- поиск заказа ---- */
+.searchbar{ position:relative; display:flex; align-items:center; gap:9px; padding:0 13px; height:46px;
+  border-radius:14px; background:rgba(255,255,255,.04); border:1px solid var(--line) }
+.searchbar .i{ width:16px; height:16px; color:var(--txt-3); flex-shrink:0 }
+.searchbar input{
+  flex:1; min-width:0; background:none; border:0; outline:none; color:var(--text);
+  font:inherit; font-size:14px; font-weight:650; letter-spacing:.02em;
+}
+.searchbar input::placeholder{ color:#5f708c; font-weight:600 }
+.searchbar .sb-go{ min-height:34px; border-radius:10px }
+
+/* ---- нижняя навигация (планирование, мобилки) ---- */
+.bottom-nav{ display:none }
+@media (max-width:820px){
+  .tabs.top-tabs{ display:none }
+  .bottom-nav{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:2px; position:fixed; left:0; right:0; bottom:0; z-index:33;
+    padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg, rgba(9,14,24,.86), rgba(7,10,18,.98));
+    backdrop-filter:blur(22px) saturate(140%); border-top:1px solid var(--line);
+  }
+  .bottom-nav .bn-i{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    min-height:52px; border-radius:13px; background:none; border:0; color:var(--txt-3);
+    font-size:10.5px; font-weight:700; letter-spacing:.02em; position:relative;
+  }
+  .bottom-nav .bn-i .i{ width:19px; height:19px }
+  .bottom-nav .bn-i.on{ color:#fff; background:color-mix(in srgb, var(--accent) 16%, transparent) }
+  .bottom-nav .bn-i.on .i{ color:color-mix(in srgb, var(--accent) 70%, #fff) }
+  .bottom-nav .bn-i .bn-badge{
+    position:absolute; top:5px; right:calc(50% - 20px); min-width:16px; height:16px; padding:0 4px;
+    display:grid; place-items:center; border-radius:99px; background:var(--warn); color:#1a1206;
+    font-size:10px; font-weight:850;
+  }
+}
+
+/* ---- футер-CTA ---- */
+.sticky-cta{
+  padding:10px 0 calc(10px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; gap:8px;
+}
+.sticky-cta .cta-note{ font-size:12px; color:var(--txt-3); line-height:1.35; display:flex; align-items:center; gap:7px;
+  background:none; border:0; padding:0; font-family:inherit; text-align:left; cursor:pointer }
+.sticky-cta .cta-note .i{ margin-top:1px }
+.sticky-cta .cta-note .i{ width:14px; height:14px; flex-shrink:0; color:var(--warn) }
+.sticky-cta .btn.primary.big{ width:100%; min-height:52px; border-radius:16px; font-size:16px }
+.sticky-cta .btn.primary.big:disabled{
+  background:rgba(255,255,255,.05); color:var(--txt-3); border:1px solid var(--line);
+  box-shadow:none;
+}
+@media (max-width:820px){
+  .has-bottom-nav .wrap{ padding-bottom:200px }
+  .has-bottom-nav .sticky-cta{ bottom:calc(64px + env(safe-area-inset-bottom)) }
+}
+
+/* ---- лента ---- */
+.logcard .log{ max-height:150px }
+.logline{ font-size:12.5px; color:var(--txt-2) }
+.logline .lt{ color:#51637f; font-variant-numeric:tabular-nums; margin-right:8px; font-weight:700; font-size:11px }
+.logline.bad{ color:#ffb4b4 } .logline.good{ color:#a9f2cd } .logline.truck{ color:#ffd7a1 }
+
+/* ---- мелкие правки ---- */
+.hud .m-val{ font-size:16px; font-weight:800; letter-spacing:-.02em }
+.chip{ background:rgba(255,255,255,.045); border:1px solid var(--line); color:var(--txt-2); font-weight:650 }
+.empty{ border:0; background:rgba(255,255,255,.022); color:var(--txt-3); font-size:12.5px; padding:12px; border-radius:13px }
+.btn.bad{ background:linear-gradient(180deg,#ff7b7b,#e04545); border-color:transparent; color:#fff }
+.btn.good{ background:linear-gradient(180deg,#57e0a4,#22a06b); border-color:transparent; color:#04180f }
+
+/* ---- схемы расстановки и наборы ---- */
+.preset-row{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px }
+.preset{
+  display:flex; flex-direction:column; align-items:flex-start; gap:3px; padding:11px 12px;
+  border-radius:14px; border:1px solid var(--line); background:rgba(255,255,255,.03);
+  text-align:left; color:var(--text); font:inherit; cursor:pointer; transition:border-color .15s, background .15s;
+}
+.preset .pr-ico{ width:26px; height:26px; border-radius:9px; display:grid; place-items:center;
+  background:rgba(255,255,255,.06); color:var(--txt-2); margin-bottom:3px }
+.preset .pr-ico .i{ width:14px; height:14px }
+.preset .pr-t{ font-size:12.5px; font-weight:750; letter-spacing:-.01em }
+.preset .pr-s{ font-size:10.5px; color:var(--txt-3); line-height:1.25 }
+.preset.on{ border-color:color-mix(in srgb, var(--accent) 55%, transparent);
+  background:color-mix(in srgb, var(--accent) 12%, rgba(255,255,255,.02)) }
+.preset.on .pr-ico{ background:color-mix(in srgb, var(--accent) 30%, transparent); color:#fff }
+@media (max-width:420px){ .preset .pr-s{ display:none } .preset{ align-items:center; text-align:center } }
+
+.bundle-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:14px }
+.bundle{
+  display:flex; align-items:center; gap:11px; padding:12px 13px; border-radius:15px; width:100%;
+  border:1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+  background:linear-gradient(100deg, color-mix(in srgb, var(--accent) 12%, transparent), rgba(255,255,255,.02));
+  color:var(--text); font:inherit; text-align:left; cursor:pointer;
+}
+.bundle .bd-ico{ width:34px; height:34px; border-radius:11px; display:grid; place-items:center; flex-shrink:0;
+  background:color-mix(in srgb, var(--accent) 22%, transparent); color:#fff }
+.bundle .bd-ico .i{ width:17px; height:17px }
+.bundle .bd-main{ display:flex; flex-direction:column; gap:2px; min-width:0; flex:1 }
+.bundle .bd-t{ font-size:13.5px; font-weight:800 }
+.bundle .bd-s{ font-size:11.5px; color:var(--txt-3); line-height:1.3 }
+.bundle .bd-price{ margin-left:auto; text-align:right; display:flex; flex-direction:column; gap:1px }
+.bundle .bd-price b{ font-size:13px; font-weight:800; white-space:nowrap }
+.bundle .bd-price s{ font-size:11px; color:var(--txt-3); white-space:nowrap }
+.bundle.off{ opacity:.55; border-color:var(--line); background:rgba(255,255,255,.02) }
+.bundle:not(:disabled):hover{ filter:brightness(1.08) }
+
+/* возврат/вопрос: компактная карточка без лишних строк */
+.client .cl-sub{ font-size:11.5px; color:var(--txt-3); margin-top:3px }
+@media (max-width:430px){ .client .cl-sub{ display:none } }
+.client .cl-code{ font-size:14.5px }
+.client .cl-left{ min-width:52px; text-align:right }
+
+.chips{ align-content:flex-start; align-items:flex-start }
+.chips > *{ flex:0 0 auto }
+.bottom-nav .bn-i .bn-badge{ right:calc(50% - 27px); top:3px }
+
+/* ---- отчёт ---- */
+.rep-net{
+  margin-top:14px; padding:16px 18px; border-radius:18px;
+  background:linear-gradient(120deg, color-mix(in srgb, var(--good) 16%, transparent), rgba(255,255,255,.02) 70%);
+  border:1px solid color-mix(in srgb, var(--good) 30%, var(--line));
+}
+.rep-net.bad{ background:linear-gradient(120deg, color-mix(in srgb, var(--bad) 16%, transparent), rgba(255,255,255,.02) 70%);
+  border-color:color-mix(in srgb, var(--bad) 30%, var(--line)) }
+.rep-net .rn-l{ display:flex; align-items:center; gap:7px; font-size:11px; font-weight:800; letter-spacing:.08em;
+  text-transform:uppercase; color:#9ff0c6 }
+.rep-net.bad .rn-l{ color:#ffb3b3 }
+.rep-net .rn-l .i{ width:14px; height:14px }
+.rep-net .rn-v{ margin-top:6px; font-size:34px; font-weight:850; letter-spacing:-.03em; line-height:1; color:#eafff4;
+  font-variant-numeric:tabular-nums }
+.rep-net.bad .rn-v{ color:#ffe9e9 }
+.rep-net .rn-v small{ font-size:17px; font-weight:700; color:var(--txt-3); margin-left:2px }
+.pnl{ display:flex; flex-direction:column; margin:4px 0 0 }
+.pnl-row{ display:grid; grid-template-columns:20px 1fr auto; gap:10px; align-items:center;
+  padding:9px 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:13.5px }
+.pnl-row:last-of-type{ border-bottom:0 }
+.pnl-row .pl-ico{ display:grid; place-items:center; color:var(--txt-3) }
+.pnl-row .pl-ico .i{ width:14px; height:14px }
+.pnl-row .pl-l{ color:var(--txt-2) }
+.pnl-row b{ font-variant-numeric:tabular-nums; font-weight:800 }
+.pnl-total{ display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:12px;
+  border-top:1px solid var(--line-strong); font-size:15px; font-weight:800 }
+.pnl-total b{ font-size:18px; letter-spacing:-.02em }
+.advice .adv-text{ font-size:13.5px; line-height:1.55; color:var(--txt-2) }
+
+/* тост: всегда снизу по центру, не закрывает контент сверху */
+.toast{
+  top:auto !important; right:auto !important; left:50%; transform:translateX(-50%);
+  bottom:calc(var(--toast-bottom, 96px) + env(safe-area-inset-bottom, 0px));
+  max-width:calc(100vw - 32px); text-align:center; z-index:70;
+}
+@keyframes popZ{ from{opacity:0; transform:translate(-50%, 8px)} to{opacity:1; transform:translate(-50%, 0)} }
+.toast{ animation:popZ .18s ease }
+
+/* ---- онбординг: компактные карточки и липкий итог ---- */
+.start .card.brand, .start .grid3 > .card{ padding:14px }
+.start .brand-tile{ width:46px; height:46px; border-radius:14px; font-size:16px }
+.start .card-title{ font-size:15px }
+.start .card-sub{ font-size:12.5px; line-height:1.4 }
+.start .grid3{ gap:8px }
+.start .chips{ gap:5px; margin-top:8px }
+.start .chip{ font-size:10.5px; padding:3px 8px }
+.start h2.sec{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--txt-3); margin:22px 0 10px }
+
+.sf-sum{ display:flex; align-items:center; gap:7px; font-size:13px; flex-wrap:wrap }
+.sf-sum .dot{ color:var(--txt-3) }
+@media (max-width:820px){
+  .start{ padding-bottom:170px }
+  .start-foot{
+    position:fixed; left:0; right:0; bottom:0; z-index:30; margin:0;
+    padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg, rgba(6,9,16,.7), rgba(6,9,16,.97));
+    backdrop-filter:blur(20px) saturate(140%); border-top:1px solid var(--line);
+    display:flex; flex-direction:column; gap:8px; align-items:stretch;
+  }
+  .start-foot .btn{ width:100%; min-height:50px }
+}
+
 </style>
 </head>
 <body>
@@ -2668,7 +3007,151 @@ function dayLabel(S){
 
 const ZONES = ZONE_LABEL;
 
-return { CFG, BRANDS, PREMISES, ITEMS, ROLES, CONTRACTS, rnd, brandOf, premOf, contractOf, compliance, slotsUsed, capacity, zoneOf, storedPackages, findCellByCode, createGame, fmt, pushLog, brokenItems, repairCost, repair, itemLocked, canBuy, buy, SHIFTS, shiftPay, onShiftNow, setShift, shiftSalary, hireCost, hireBreakdown, canHire, hire, fire, dayDemand, recalcForecast, forecastFor, expirePackages, layoutProblems, startDay, stepMinute, searchMinutes, acceptBox, placeBox, sleepTired, shelfName, cellAddress, clientLocation, fetchMinutes, HANDOVER_MIN, startFetch, giveToClient, returnMinutes, takeReturn, shipReturns, canPack, returnHands, consult, playerServiceMinutes, cancelService, payoutMult, fixtureAt, canPlaceAt, freeArea, placeFixture, canPlaceIgnoring, moveFixture, removeFixture, autoLayout, gridPath, doorCell, shelfPath, playerCell, staffCell, shelfDistance, loanLimit, takeLoan, xpNeed, addXp, resolveEvent, autoResolveEvent, endDay, nextDay, serialize, deserialize, CLAMP, payrollNow, contractStatus, dayLabel, ZONES };
+/* ============================================================
+   Быстрые механики: схемы расстановки, наборы закупок, поиск заказа
+   ============================================================ */
+
+const LAYOUT_PRESETS = {
+  fast:    { name:'Быстрая выдача', desc:'полки ближе к стойке — меньше ходьбы', ico:'zap' },
+  compact: { name:'Компакт',        desc:'плотно в угол — больше проходов',      ico:'layout' },
+  stock:   { name:'Склад',          desc:'полки в глубине — свободный зал',      ico:'shelf' },
+};
+
+/* опорная точка: стойка, иначе вход (низ зала) */
+function anchorPoint(S){
+  const c = S.fixtures.find(f => f.itemId === 'counter');
+  if (c) return [c.x + c.w / 2, c.y + c.h / 2];
+  return [S.grid.w / 2, S.grid.h];
+}
+
+/* позиции для поиска места, отсортированные под выбранную схему */
+function presetPositions(S, kind){
+  const [ax, ay] = anchorPoint(S);
+  const list = [];
+  for (let y = 0; y < S.grid.h; y++){
+    for (let x = 0; x < S.grid.w; x++){
+      const d = Math.hypot(x - ax, y - ay);
+      let score;
+      if (kind === 'fast') score = d;                                  // ближе к стойке — первым
+      else if (kind === 'stock') score = -d;                           // дальше — первым
+      else score = y * S.grid.w + x;                                   // плотно от угла
+      list.push({ x, y, score });
+    }
+  }
+  return list.sort((a, b) => a.score - b.score);
+}
+
+/* расставить купленное и подвинуть пустые стеллажи по схеме */
+function applyPreset(S, kind){
+  if (S.phase !== 'plan') return { ok:false, msg:'Только до начала дня' };
+  const positions = presetPositions(S, kind);
+  const prio = id => {
+    const it = ITEMS[id];
+    if (id === 'counter') return 0;
+    if (it && it.cap) return 1;
+    if (it && it.physical && it.size.w * it.size.h >= 4) return 2;
+    return 3;
+  };
+
+  let placed = 0, moved = 0;
+
+  // 1) купленное, но не расставленное
+  const pending = [...S.unplaced].sort((a, b) => prio(a) - prio(b));
+  for (const id of pending){
+    const it = ITEMS[id];
+    if (!it || !it.physical) continue;
+    for (const pos of positions){
+      if (canPlaceAt(S, it.size.w, it.size.h, pos.x, pos.y)){
+        if (placeFixture(S, id, pos.x, pos.y).ok){ placed++; break; }
+      }
+    }
+  }
+
+  // 2) уже стоящие пустые полки — подвинуть под схему
+  const movable = S.fixtures
+    .filter(f => {
+      if (!f.shelfId) return false;
+      const sh = S.shelves.find(x => x.id === f.shelfId);
+      return sh && !sh.cells.some(Boolean);
+    })
+    .sort((a, b) => prio(a.itemId) - prio(b.itemId));
+
+  for (const f of movable){
+    for (const pos of positions){
+      if (pos.x === f.x && pos.y === f.y) break;
+      if (canPlaceIgnoring(S, f, f.w, f.h, pos.x, pos.y)){
+        if (moveFixture(S, f.id, pos.x, pos.y).ok){ moved++; break; }
+      }
+    }
+  }
+
+  pushLog(S, moved || placed
+    ? `Схема «${LAYOUT_PRESETS[kind].name}»: расставлено ${placed}, переставлено ${moved}.`
+    : `Схема «${LAYOUT_PRESETS[kind].name}»: менять нечего.`, 'info');
+  return { ok:true, placed, moved };
+}
+
+/* ---------- наборы закупок ---------- */
+const BUNDLES = {
+  start:   { name:'Стартовый', ico:'store',  items:['counter', 'banner', 'light'],      desc:'минимум для брендбука' },
+  flow:    { name:'Поток',     ico:'coffee', items:['coffee', 'sofa', 'music'],         desc:'больше людей и терпения' },
+  service: { name:'Сервис',    ico:'card',   items:['scanner', 'printer', 'terminal'],  desc:'быстрая и дорогая выдача' },
+};
+const BUNDLE_DISCOUNT = 0.1;
+
+function bundleQuote(S, key){
+  const b = BUNDLES[key];
+  if (!b) return null;
+  const missing = b.items.filter(id => !(S.owned[id] > 0));
+  const full = missing.reduce((a, id) => a + ITEMS[id].cost, 0);
+  const cost = Math.round(full * (1 - BUNDLE_DISCOUNT) / 50) * 50;
+  const locked = b.items.some(id => (S.lvl || 1) < ITEMS[id].lvl);
+  return { key, name:b.name, items:b.items, missing, desc:b.desc, ico:b.ico,
+           full, cost, save:full - cost, locked, ok: missing.length > 0 && !locked };
+}
+
+function buyBundle(S, key){
+  if (S.phase !== 'plan') return { ok:false, msg:'Закупки — до начала дня' };
+  const q = bundleQuote(S, key);
+  if (!q) return { ok:false, msg:'Нет такого набора' };
+  if (q.locked) return { ok:false, msg:'Часть набора откроется с новым уровнем' };
+  if (!q.missing.length) return { ok:false, msg:'Набор уже собран' };
+  if (S.money < q.cost) return { ok:false, msg:`Нужно ${fmt(q.cost)} ₽` };
+  S.money -= q.cost;
+  for (const id of q.missing){
+    S.owned[id] = (S.owned[id] || 0) + 1;
+    if (ITEMS[id].physical) S.unplaced.push(id);
+  }
+  recalcForecast(S);
+  pushLog(S, `Набор «${q.name}»: ${q.missing.map(id => ITEMS[id].name).join(', ')} за ${fmt(q.cost)} ₽ (экономия ${fmt(q.save)} ₽)`, 'buy');
+  return { ok:true, cost:q.cost, items:q.missing };
+}
+
+/* ---------- поиск заказа по коду ---------- */
+function findByCode(S, raw){
+  const q = String(raw || '').trim().toUpperCase().replace(/\s+/g, '');
+  if (!q) return null;
+  const norm = c => String(c || '').toUpperCase().replace(/\s+/g, '');
+  // клиент в очереди
+  const client = S.clients.find(c => !c.returnItem && norm(c.code).includes(q));
+  if (client) return { kind:'client', client, loc: clientLocation(S, client.id) };
+  // посылка в зоне приёмки
+  const pkg = S.receiving.find(p => norm(p.code).includes(q));
+  if (pkg) return { kind:'receiving', pkg };
+  // посылка на полке
+  for (const sh of S.shelves){
+    for (let i = 0; i < sh.cells.length; i++){
+      const p = sh.cells[i];
+      if (p && norm(p.code).includes(q)) return { kind:'shelf', pkg:p, shelf: sh, idx:i };
+    }
+  }
+  // возврат
+  const ret = S.returns.find(r => norm(r.code).includes(q));
+  if (ret) return { kind:'return', ret };
+  return null;
+}
+
+return { CFG, BRANDS, PREMISES, ITEMS, ROLES, CONTRACTS, rnd, brandOf, premOf, contractOf, compliance, slotsUsed, capacity, zoneOf, storedPackages, findCellByCode, createGame, fmt, pushLog, brokenItems, repairCost, repair, itemLocked, canBuy, buy, SHIFTS, shiftPay, onShiftNow, setShift, shiftSalary, hireCost, hireBreakdown, canHire, hire, fire, dayDemand, recalcForecast, forecastFor, expirePackages, layoutProblems, startDay, stepMinute, searchMinutes, acceptBox, placeBox, sleepTired, shelfName, cellAddress, clientLocation, fetchMinutes, HANDOVER_MIN, startFetch, giveToClient, returnMinutes, takeReturn, shipReturns, canPack, returnHands, consult, playerServiceMinutes, cancelService, payoutMult, fixtureAt, canPlaceAt, freeArea, placeFixture, canPlaceIgnoring, moveFixture, removeFixture, autoLayout, gridPath, doorCell, shelfPath, playerCell, staffCell, shelfDistance, loanLimit, takeLoan, xpNeed, addXp, resolveEvent, autoResolveEvent, endDay, nextDay, serialize, deserialize, CLAMP, payrollNow, contractStatus, dayLabel, ZONES, LAYOUT_PRESETS, applyPreset, BUNDLES, BUNDLE_DISCOUNT, bundleQuote, buyBundle, findByCode };
 })();
 /* Набор векторных иконок (24×24, обводка currentColor).
    Инлайн-SVG: работает без сети и в песочнице предпросмотра. */
@@ -2730,6 +3213,10 @@ const ICON_PATHS = {
   pack: '<path d="M3.4 7.6 12 3l8.6 4.6v8.8L12 21l-8.6-4.6z"/><path d="M3.4 7.6 12 12.2l8.6-4.6M12 12.2V21"/><path d="M7.7 5.3 16.3 9.9v3.4"/>',
   sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4 17 7M7 17l-1.6 1.6"/>',
   moon: '<path d="M20.2 14.6A8.4 8.4 0 0 1 9.4 3.8a8.6 8.6 0 1 0 10.8 10.8z"/>',
+  search: '<circle cx="11" cy="11" r="6.2"/><path d="m15.6 15.6 4.4 4.4"/>',
+  flag2: '<path d="M5.4 3.6v16.8"/><path d="M5.4 4.8h11.2l-2.2 4 2.2 4H5.4z"/>',
+  target: '<circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="3.4"/><path d="M12 3.8v2.2M12 18v2.2M3.8 12h2.2M18 12h2.2"/>',
+  rocket: '<path d="M13.6 4.6c3.2-1.4 5.8-1 5.8-1s.4 2.6-1 5.8c-1.2 2.6-4.4 5-6.4 6.2l-4.6-4.6c1.2-2 3.6-5.2 6.2-6.4z"/><circle cx="15" cy="9" r="1.5"/><path d="M7.4 14.2 4 15.4l1.4-3.2M9.8 16.6l-1.2 3.4 3.2-1.4"/>',
   download: '<path d="M12 3.6v10.2"/><path d="M8.2 10.4 12 14.2l3.8-3.8"/><path d="M4.6 16.4v2.2a1.8 1.8 0 0 0 1.8 1.8h11.2a1.8 1.8 0 0 0 1.8-1.8v-2.2"/>',
   sparkle: '<path d="M12 3.2l1.9 4.9 4.9 1.9-4.9 1.9L12 16.8l-1.9-4.9-4.9-1.9 4.9-1.9L12 3.2z"/><path d="M18.6 16.4l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z"/>',
   chart: '<path d="M4 20V4"/><path d="M4 20h16"/><rect x="7.4" y="12" width="3.4" height="5.2" rx="1"/><rect x="13" y="8.2" width="3.4" height="9" rx="1"/>',
@@ -2769,6 +3256,8 @@ const U = {
   selBox: null,
   selItem: null,
   moveId: null,
+  shelfOpen: {},          // раскрытые стеллажи
+  preset: 'fast',         // схема расстановки
   toast: null,
   toastUntil: 0,
   lastRender: 0,
@@ -3264,7 +3753,12 @@ function viewStart(){
     <div class="grid3">${prems}</div>
 
     <div class="start-foot">
-      <div class="muted small">Стартовый капитал 60 000 ₽ минус депозит помещения.</div>
+      <div class="sf-sum">
+        <b>${E.BRANDS.find(b => b.id === U.sel.brand)?.name || ''}</b>
+        <span class="dot">·</span>
+        <b>${E.PREMISES.find(p => p.id === U.sel.premise)?.name || ''}</b>
+        <span class="muted small">капитал ${fmt(60000 - (E.PREMISES.find(p => p.id === U.sel.premise)?.deposit || 0))} ₽</span>
+      </div>
       <button class="btn primary big" data-act="startGame">Открыть ПВЗ ${icon('chevron')}</button>
     </div>
   </div>`;
@@ -3305,72 +3799,109 @@ function speedButtons(){
 }
 
 /* ---------------- фаза планирования ---------------- */
+function flowChart(S){
+  const f = E.forecastFor(S);
+  if (!f.length) return '';
+  const W = 300, H = 92, pad = 8, top = 16;
+  const max = Math.max(...f.map(x => x.exp), 0.001);
+  const pts = f.map((x, i) => [
+    pad + i * (W - pad * 2) / Math.max(1, f.length - 1),
+    H - pad - (x.exp / max) * (H - pad - top),
+  ]);
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  const area = `${line} L ${pts[pts.length - 1][0].toFixed(1)} ${H - pad} L ${pts[0][0].toFixed(1)} ${H - pad} Z`;
+  const peak = f.reduce((b, x, i) => (x.exp > f[b].exp ? i : b), 0);
+  const px = pts[peak][0] / W * 100;
+  return `<div class="flow">
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="flowGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="var(--accent)" stop-opacity=".55"/>
+          <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="${area}" fill="url(#flowGrad)"/>
+      <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"
+            stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    </svg>
+    <div class="fl-peak" style="left:${Math.min(72, Math.max(4, px - 8))}%">пик ${f[peak].hour}:00</div>
+    <div class="fl-lbl"><span>${f[0].hour}:00</span><span>${f[f.length - 1].hour}:00</span></div>
+  </div>`;
+}
+
+function tile(cls, ico, label, value, sub){
+  return `<div class="tile ${cls || ''}">
+    <div class="t-lbl">${icon(ico)}${label}</div>
+    <div class="t-val">${value}${sub ? `<small>${sub}</small>` : ''}</div>
+  </div>`;
+}
+function moneyTile(ico, label, val){
+  const n = Math.abs(Math.round(val));
+  if (!n) return tile('', ico, label, '0', '₽');
+  return tile('bad', ico, label, '−' + fmt(n), '₽');
+}
+
 function viewPlan(){
   const p = E.premOf(S), b = E.brandOf(S);
   const cap = E.capacity(S);
   const payroll = E.payrollNow(S);
-  const forecast = E.forecastFor(S);
-  const maxExp = Math.max(...forecast.map(f => f.exp), 1);
   const expected = Math.round(E.dayDemand(S));
-
-  const bars = forecast.map(f => `
-    <div class="fbar" title="${f.hour}:00 — ${f.exp.toFixed(1)}">
-      <i style="height:${Math.max(4, f.exp / maxExp * 100)}%"></i>
-      <span>${f.hour}</span>
-    </div>`).join('');
-
-  const cs = E.contractStatus(S);
-  const cont = E.contractOf(S);
+  const trucks = truckPlan(S);
+  const clients = Math.min(expected, trucks);
+  const probs = E.layoutProblems(S);
+  const cs = E.contractStatus(S), cont = E.contractOf(S);
+  const dayName = ['пн','вт','ср','чт','пт','сб','вс'][(S.day - 1) % 7];
 
   return `
   ${viewHud()}
-  <main class="wrap">
-    <section class="card pad day-brief" data-r="brief">
-      <div class="brief-top">
-        <div>
-          <div class="kicker">Утро · планирование</div>
-          <h2>День ${S.day}</h2>
-          <div class="muted small">${b.name} · ${p.name} · ${new Date().getDay() ? '' : ''}${['пн','вт','ср','чт','пт','сб','вс'][(S.day-1)%7]}</div>
-        </div>
-        <div class="brief-nums">
-          <div class="bn"><b>${Math.min(expected, truckPlan(S))}</b><span>прогноз клиентов</span></div>
-          <div class="bn"><b>${truckPlan(S)}</b><span>посылок привезут</span></div>
-          <div class="bn"><b>${cap.free}</b><span>свободно ячеек</span></div>
-        </div>
+  <main class="wrap plan has-bottom-nav">
+    <section class="card hero pad" data-r="brief">
+      <div class="kicker">Утро · планирование</div>
+      <h2 class="brief-day">День ${S.day}</h2>
+      <div class="brief-meta">${b.name} · ${p.name} · ${dayName}</div>
+      <div class="tiles">
+        ${tile('', 'users', 'клиенты', clients)}
+        ${tile('', 'box', 'посылки', trucks)}
+        ${tile(cap.free < clients ? 'warn' : 'good', 'shelf', 'ячейки', cap.free)}
       </div>
-      <div class="forecast">${bars}</div>
-      <div class="forecast-legend muted small">Почасовой прогноз потока (погрешность ±15%)</div>
+      ${flowChart(S)}
     </section>
 
     <section class="grid2" data-r="kpi">
       <div class="card pad">
-        <h3>${icon('award')} Контракт «${cont.name}»</h3>
+        <div class="sec-head">
+          <div class="sh-ico">${icon('award')}</div>
+          <div class="sh-t">Контракт «${cont.name}»</div>
+          <div class="sh-meta">аудит через ${7 - (S.day - 1) % 7} дн.</div>
+        </div>
         <div class="kpi">
           ${kpiRow('Скорость выдачи', cs.avgSla ? cs.avgSla + ' мин' : '—', '≤ ' + cont.sla, cs.slaOk)}
           ${kpiRow('Упущенные', (cs.missed * 100).toFixed(1) + '%', '≤ ' + (cont.missed * 100).toFixed(1) + '%', cs.missedOk)}
           ${kpiRow('NPS', S.nps.toFixed(2), '≥ ' + cont.nps, cs.npsOk)}
           ${kpiRow('Брендбук', Math.round(cs.compliance * 100) + '%', '≥ ' + Math.round(cont.brand * 100) + '%', cs.brandOk)}
         </div>
-        <div class="muted small">Аудит — каждые 7 дней. Провал — понижение контракта.</div>
       </div>
 
       <div class="card pad">
-        <h3>${icon('chart')} Экономика</h3>
-        <div class="kpi">
-          ${moneyRow('Аренда', -p.rent)}
-          ${moneyRow('ФОТ', -payroll)}
-          ${moneyRow('Коммуналка', -E.CFG.UTIL_PER_DAY)}
-          ${S.debt ? moneyRow('Кредит', -Math.round(S.debt * E.CFG.LOAN_RATE)) : ''}
+        <div class="sec-head">
+          <div class="sh-ico">${icon('wallet')}</div>
+          <div class="sh-t">Экономика дня</div>
+          <div class="sh-meta">долг <b>${fmt(S.debt)} ₽</b></div>
         </div>
-        ${S.staff.some(st => (st.prepay||0) > 0) ? `<div class="muted small">Аванс покрывает ${S.staff.filter(st=>(st.prepay||0)>0).length} чел. — зарплата за них пока не списывается.</div>` : ''}
-        <div class="row-between">
-          <span class="muted small">Долг: ${fmt(S.debt)} ₽</span>
-          <button class="btn small" data-act="loan" ${S.debt >= E.loanLimit(S) ? 'disabled' : ''}>Взять кредит 20 000 ₽</button>
+        <div class="tiles" style="grid-template-columns:1fr 1fr">
+          ${moneyTile('store', 'аренда', p.rent)}
+          ${moneyTile('users', 'ФОТ', payroll)}
+          ${moneyTile('zap', 'коммуналка', E.CFG.UTIL_PER_DAY)}
+          ${moneyTile('card', 'кредит', Math.round(S.debt * E.CFG.LOAN_RATE))}
+        </div>
+        <div class="row-between" style="margin-top:12px">
+          <span class="muted small">${S.staff.some(st => (st.prepay || 0) > 0) ? `аванс покрывает ${S.staff.filter(st => (st.prepay||0) > 0).length} чел.` : 'Кредит до ' + fmt(E.loanLimit(S)) + ' ₽'}</span>
+          <button class="btn small" data-act="loan" ${S.debt >= E.loanLimit(S) ? 'disabled' : ''}>Взять 20 000 ₽</button>
         </div>
       </div>
     </section>
 
-    <nav class="tabs" data-r="tabs">
+    <nav class="tabs top-tabs" data-r="tabs">
       ${tabBtn('layout','Планировка','layout', S.unplaced.length)}
       ${tabBtn('shop','Магазин','bag')}
       ${tabBtn('staff','Команда','users')}
@@ -3380,18 +3911,40 @@ function viewPlan(){
       ${U.tab === 'layout' ? layoutView() : U.tab === 'shop' ? shopView() : U.tab === 'staff' ? staffView() : policyView()}
     </section>
 
+    <nav class="bottom-nav" data-r="bnav">
+      ${bnavBtn('layout','Планировка','layout', S.unplaced.length)}
+      ${bnavBtn('shop','Магазин','bag', 0)}
+      ${bnavBtn('staff','Команда','users', 0)}
+      ${bnavBtn('policy','Склад','archive', 0)}
+    </nav>
+
     <div class="sticky-cta" data-r="cta">
-      <div class="muted small">${hintText()}</div>
-      <button class="btn primary big" data-act="startDay" ${E.layoutProblems(S).length ? 'disabled' : ''}>Начать день ${icon('chevron')}</button>
+      <button class="cta-note" ${probs.length ? `data-act="tab" data-id="${S.unplaced.length ? 'layout' : 'shop'}"` : 'data-act="noop"'}>
+        ${probs.length ? icon('alert') + '<span>' + probs[0] + ' — исправить</span>' : icon('check') + '<span>' + hintText() + '</span>'}
+      </button>
+      <button class="btn primary big" data-act="startDay" ${probs.length ? 'disabled' : ''}>
+        Начать день ${icon('chevron')}
+      </button>
     </div>
   </main>`;
+}
+
+function bnavBtn(id, label, ico, badge){
+  return `<button class="bn-i ${U.tab === id ? 'on' : ''}" data-act="tab" data-id="${id}">
+    ${icon(ico)}<span>${label}</span>${badge ? `<b class="bn-badge">${badge}</b>` : ''}
+  </button>`;
 }
 
 function tabBtn(id, label, ico, badge){
   return `<button class="tab ${U.tab === id ? 'on' : ''}" data-act="tab" data-id="${id}">${ico ? icon(ico) : ''}<span class="tab-lbl">${label}</span>${badge ? `<b class="tab-badge">${badge}</b>` : ''}</button>`;
 }
 function kpiRow(label, val, target, ok){
-  return `<div class="kpi-row"><span>${label}</span><b class="${ok ? 'good' : 'warn'}">${val}</b><span class="muted small">${target}</span></div>`;
+  return `<div class="kpi-row">
+    <span class="kd ${ok ? '' : 'warn'}"></span>
+    <span>${label}</span>
+    <b class="kv ${ok ? 'good' : 'warn'}">${val}</b>
+    <span class="kt">${target}</span>
+  </div>`;
 }
 function moneyRow(label, val){
   const txt = val === 0 ? '0 ₽' : (val > 0 ? '+' : '') + fmt(val) + ' ₽';
@@ -3506,13 +4059,22 @@ function layoutView(){
       }).join('')
     : '<span class="muted small">Всё купленное расставлено.</span>';
 
+  const presets = Object.entries(E.LAYOUT_PRESETS).map(([id, p]) => `
+    <button class="preset ${U.preset === id ? 'on' : ''}" data-act="preset" data-id="${id}">
+      <span class="pr-ico">${icon(p.ico)}</span>
+      <span class="pr-t">${p.name}</span>
+      <span class="pr-s">${p.desc}</span>
+    </button>`).join('');
+
   return `
-  <div class="row-between">
-    <h3>${icon('layout')} Планировка зала</h3>
-    <span class="muted small">свободно ${E.freeArea(S)} кл.</span>
+  <div class="sec-head">
+    <div class="sh-ico">${icon('layout')}</div>
+    <div class="sh-t">Планировка зала</div>
+    <div class="sh-meta">свободно <b>${E.freeArea(S)}</b> кл.</div>
   </div>
-  <div class="muted small" style="margin-bottom:8px">
-    Выберите предмет снизу и тапните по клетке. «кл.» у стеллажа — расстояние от стойки: от него зависит, сколько вы идёте за заказом.
+  <div class="preset-row">${presets}</div>
+  <div class="muted small" style="margin:10px 0 8px">
+    Тапните предмет внизу и затем клетку. «кл.» у стеллажа — расстояние до стойки: от него зависит время выдачи.
   </div>
   <div class="room" style="--cols:${g.w};--rows:${g.h}">
     <div class="room-bg">${bg}</div>
@@ -3522,7 +4084,7 @@ function layoutView(){
     <div class="muted small">${U.moveId ? 'Тапните клетку — предмет переедет'
       : U.selItem != null ? 'Тапните по клетке, чтобы поставить'
       : 'Выберите предмет или тапните по мебели, чтобы передвинуть'}</div>
-    <button class="btn ghost small" data-act="autoLayout">Расставить автоматически</button>
+    <button class="btn ghost small" data-act="preset" data-id="${U.preset}">Разложить по схеме</button>
   </div>
   <div class="palette">${palette}</div>`;
 }
@@ -3530,11 +4092,29 @@ function layoutView(){
 function shopView(){
   const ids = Object.keys(E.ITEMS);
   const slotsUsed = E.slotsUsed(S), slotsMax = E.premOf(S).slots;
+  const bundles = Object.keys(E.BUNDLES).map(key => {
+    const q = E.bundleQuote(S, key);
+    if (!q) return '';
+    const state = q.locked ? 'нужен уровень' : !q.missing.length ? 'собран' : null;
+    return `<button class="bundle ${state ? 'off' : ''}" data-act="bundle" data-id="${key}" ${state || S.money < q.cost ? 'disabled' : ''}>
+      <span class="bd-ico">${icon(q.ico)}</span>
+      <span class="bd-main">
+        <span class="bd-t">${q.name}</span>
+        <span class="bd-s">${state || q.missing.map(id => E.ITEMS[id].name).join(' · ')}</span>
+      </span>
+      <span class="bd-price">
+        ${state ? `<b>${state}</b>` : `<b>${fmt(q.cost)} ₽</b><s>${fmt(q.full)}</s>`}
+      </span>
+    </button>`;
+  }).join('');
+
   return `
-  <div class="row-between">
-    <h3>${icon('bag')} Оборудование и мебель</h3>
-    <span class="muted small">Занято ${slotsUsed}/${slotsMax} слотов</span>
+  <div class="sec-head">
+    <div class="sh-ico">${icon('bag')}</div>
+    <div class="sh-t">Оборудование и мебель</div>
+    <div class="sh-meta">слоты <b>${slotsUsed}/${slotsMax}</b></div>
   </div>
+  <div class="bundle-row">${bundles}</div>
   <div class="shop">
     ${ids.map(id => {
       const it = E.ITEMS[id];
@@ -3654,16 +4234,88 @@ function policyView(){
 }
 
 /* ---------------- день ---------------- */
+function coachCard(){
+  const truck = S.trucks.find(t => t.arrived && t.left > 0);
+  const room = E.capacity(S).free - S.receiving.length;
+  const step = (n, t, sub, btn) => `<div class="coach">
+      <div class="co-n">${n}</div>
+      <div style="min-width:0"><div class="co-t">${t}</div><div class="co-s">${sub}</div></div>
+      ${btn}
+    </div>`;
+
+  if (truck && truck.left > 0 && room > 0)
+    return step(1, `Машина привезла ${truck.left}`, `осталось <span data-live="truck-t">${Math.max(0, truck.waitLeft)}</span> мин · примите посылки`,
+      `<button class="btn primary" data-act="acceptAll">Принять всё</button>`);
+  if (S.receiving.length)
+    return step(2, `Разложите ${S.receiving.length} в приёмке`, 'Выберите ячейку на стеллаже',
+      `<button class="btn" data-act="placeAll">Разложить</button>`);
+  const nx = nextClient(S);
+  if (nx)
+    return step(3, `Клиент ${esc(nx.code || nx.returnCode || '')} ждёт`, 'Самый срочный в очереди',
+      `<button class="btn primary" data-act="nextClient">Обслужить</button>`);
+  if (S.broken && Object.keys(S.broken).some(k => S.broken[k]))
+    return step(4, 'Техника сломана', 'Ремонт окупается за день',
+      `<button class="btn" data-act="repairAll">Починить</button>`);
+  return step(0, 'Всё под контролем', 'Очередь пуста — можно ускорить время',
+    `<button class="btn ghost" data-act="speed" data-v="3">3×</button>`);
+}
+
+function coachCoversTruck(){
+  const truck = S.trucks.find(t => t.arrived && t.left > 0);
+  const room = E.capacity(S).free - S.receiving.length;
+  return !!(truck && room > 0);
+}
+
+function truckCard(truck){
+  if (!truck) return '';
+  return `<div class="truck-card">
+    <div class="tc-ico">${icon('truck')}</div>
+    <div style="min-width:0">
+      <div class="tc-t">Машина · ${truck.left} посылок</div>
+      <div class="tc-s" data-live="truck-t">уедет через ${Math.max(0, truck.waitLeft)} мин</div>
+      <div class="bar thin"><i class="${truck.waitLeft < 60 ? 'danger' : 'warn'}" data-live="truck-bar" style="width:${pct(truck.waitLeft, 300)}%"></i></div>
+    </div>
+    <div class="tc-act">
+      <button class="btn small" data-act="accept">Принять</button>
+      <button class="btn small primary" data-act="acceptAll">Всё</button>
+    </div>
+  </div>`;
+}
+
+function queueCard(){
+  const list = [...S.clients].sort((a,b) => a.patience - b.patience).slice(0, 8);
+  return `<div class="card pad" data-r="queue">
+    <div class="sec-head">
+      <div class="sh-ico">${icon('users')}</div>
+      <div class="sh-t">Очередь</div>
+      <div class="sh-meta"><b>${S.clients.length}</b> чел.${S.staff.filter(s => s.role === 'seller').length ? ` · продавцов ${S.staff.filter(s => s.role === 'seller').length}` : ''}</div>
+    </div>
+    ${S.clients.length ? `<div class="queue">${list.map(c => clientCard(c)).join('')}</div>` : `<div class="empty">Пока никого. Передохните.</div>`}
+    ${S.clients.length > 8 ? `<div class="muted small" style="margin-top:8px">и ещё ${S.clients.length - 8}…</div>` : ''}
+  </div>`;
+}
+
+function searchCard(){
+  return `<div class="card tight" data-r="search">
+    <div class="searchbar">
+      ${icon('search')}
+      <input id="order-q" type="text" inputmode="text" autocomplete="off" placeholder="Код заказа или клиента" />
+      <button class="btn small sb-go" data-act="findOrder">Найти</button>
+    </div>
+  </div>`;
+}
+
 function viewDay(){
   const truck = S.trucks.find(t => t.arrived && t.left > 0);
-  const cap = E.capacity(S);
   const busy = S.player.busy;
   const busyClient = busy ? S.clients.find(c => c.id === busy.clientId) : null;
-
   const ab = actionBar();
+
   return `
   ${viewHud()}
   <main class="wrap day${ab ? ' with-bar' : ''}">
+    <div data-r="coach">${coachCard()}</div>
+
     <div data-r="alerts">
     ${E.brokenItems(S).length ? `<div class="alert badline">
         ${icon('wrench')} Сломано: ${E.brokenItems(S).map(id => E.ITEMS[id].name).join(', ')}
@@ -3683,65 +4335,56 @@ function viewDay(){
 
     <div class="day-grid">
       <section class="col sec-a">
-        <div data-r="machine">${truck ? `
-        <div class="card pad truck">
-          <div class="row-between">
-            <div><b class="ico-lead">${icon('truck')} Машина</b> <span class="muted small">${truck.left} посылок · <span data-live="truck-t">уедет через ${Math.max(0, truck.waitLeft)} мин</span></span></div>
-            <div class="row">
-              <button class="btn small primary" data-act="accept">Принять</button>
-              <button class="btn small" data-act="acceptAll">Всё</button>
-            </div>
-          </div>
-          <div class="bar thin"><i class="${truck.waitLeft < 60 ? 'danger' : 'warn'}" data-live="truck-bar" style="width:${pct(truck.waitLeft, 300)}%"></i></div>
-        </div>` : ''}</div>
+        <div data-r="machine">${coachCoversTruck() ? '' : truckCard(truck)}</div>
+        ${searchCard()}
+        ${queueCard()}
 
-        <div class="card pad" data-r="returns">
-          <div class="row-between">
-            <h3>${icon('returns')} Возвраты <span class="muted small">${S.returns.length}/${E.CFG.RET_CAP}</span></h3>
-            <span class="muted small">машина в 19:00</span>
+        <div class="card ${S.receiving.length ? 'pad' : 'tight'}" data-r="receiving">
+          <div class="sec-head" ${S.receiving.length ? '' : 'style="margin:0"'}>
+            <div class="sh-ico">${icon('inbox')}</div>
+            <div class="sh-t">Зона приёмки</div>
+            <div class="sh-meta"><b>${S.receiving.length}</b> / ${E.CFG.RECV_MAX}</div>
           </div>
-          ${S.returns.length ? `<div class="ret-row">${S.returns.map(r => `<span class="pk ret">${esc(r.code)}</span>`).join('')}</div>` : emptyBox('Пока пусто. Клиент с возвратом приходит сам.')}
-          ${S.minutes >= E.CFG.RET_HOUR_MIN && S.returns.length
-            ? `<button class="btn small" data-act="shipReturns">Отправить ${S.returns.length} шт. (+${S.returns.length * E.CFG.RET_SHIP_FEE} ₽)</button>`
-            : (S.returns.length ? `<div class="muted small">Отправятся сами в 19:00 · ${S.returns.length * E.CFG.RET_SHIP_FEE} ₽ за обработку</div>` : '')}
-        </div>
-
-        <div class="card pad" data-r="receiving">
-          <div class="row-between">
-            <h3>${icon('inbox')} Зона приёмки <span class="muted small">${S.receiving.length}/${E.CFG.RECV_MAX}</span></h3>
-            ${S.receiving.length ? `<button class="btn ghost small" data-act="placeAll">Разложить всё</button>` : ''}
-          </div>
-          ${S.receiving.length ? `<div class="chips wrap">${S.receiving.map(p => `
+          ${S.receiving.length ? `<div class="ret-row">${S.receiving.map(p => `
             <button class="pk ${U.selBox === p.id ? 'sel' : ''} ${p.fragile ? 'frag' : ''}" data-act="pickBox" data-id="${p.id}">
               ${p.code}<span class="sz">${p.size}</span>
-            </button>`).join('')}</div>`
-          : emptyBox('Пусто. Примите посылки из машины.')}
-          ${U.selBox ? `<div class="muted small">Выберите свободную ячейку (подсвечены). Хрупкое и КГТ — только в свою зону.</div>` : ''}
+            </button>`).join('')}</div>
+            <button class="btn small ghost" style="margin-top:10px" data-act="placeAll">Разложить всё</button>`
+          : `<div class="muted small" style="margin-top:8px">Пусто — примите посылки из машины.</div>`}
+          ${U.selBox ? `<div class="muted small" style="margin-top:8px">Выберите подсвеченную ячейку. Хрупкое и КГТ — только в свою зону.</div>` : ''}
+        </div>
+
+        <div class="card pad" data-r="shelves">
+          <div class="sec-head">
+            <div class="sh-ico">${icon('shelf')}</div>
+            <div class="sh-t">Стеллажи</div>
+            <div class="sh-meta"><b>${E.capacity(S).used}</b> / ${E.capacity(S).total} занято</div>
+          </div>
+          ${S.shelves.length ? S.shelves.map(sh => shelfView(sh)).join('') : `<div class="empty">Стеллажей нет — купите в магазине.</div>`}
         </div>
       </section>
 
       <section class="col sec-b">
-        <div class="card pad" data-r="queue">
-          <div class="row-between">
-            <h3>${icon('users')} Очередь <span class="muted small">${S.clients.length}</span></h3>
-            <span class="muted small">продавцов: ${S.staff.filter(s => s.role === 'seller').length}</span>
+        <div class="card pad" data-r="returns">
+          <div class="sec-head">
+            <div class="sh-ico">${icon('returns')}</div>
+            <div class="sh-t">Возвраты</div>
+            <div class="sh-meta"><b>${S.returns.length}</b> / ${E.CFG.RET_CAP} · машина в 19:00</div>
           </div>
-          ${S.clients.length ? `<div class="queue">${[...S.clients].sort((a,b) => a.patience - b.patience).slice(0, 8).map(c => clientCard(c)).join('')}</div>` : `<div class="empty small">Пока никого. Передохните.</div>`}
-          ${S.clients.length > 8 ? `<div class="muted small">и ещё ${S.clients.length - 8}…</div>` : ''}
-        </div>
-
-        <div class="card pad logcard" data-r="log">
-          <h3>${icon('activity')} Лента</h3>
-          <div class="log">${S.log.slice(0, 7).map(l => `<div class="logline ${l.type}"><span class="lt">${l.t ? String(Math.floor(l.t/60)+9).padStart(2,'0')+':'+String(l.t%60).padStart(2,'0') : ''}</span>${esc(l.text)}</div>`).join('')}</div>
+          ${S.returns.length ? `<div class="ret-row">${S.returns.map(r => `<span class="pk ret">${esc(r.code)}</span>`).join('')}</div>` : `<div class="empty">Пусто — клиент с возвратом приходит сам.</div>`}
+          ${S.minutes >= E.CFG.RET_HOUR_MIN && S.returns.length
+            ? `<button class="btn small primary" style="margin-top:10px" data-act="shipReturns">Отправить ${S.returns.length} шт. · +${S.returns.length * E.CFG.RET_SHIP_FEE} ₽</button>`
+            : (S.returns.length ? `<div class="muted small" style="margin-top:8px">Уедут сами в 19:00 · ${S.returns.length * E.CFG.RET_SHIP_FEE} ₽ за обработку</div>` : '')}
         </div>
 
         ${miniMap()}
-      </section>
 
-      <section class="col sec-c">
-        <div class="card pad" data-r="shelves">
-          <h3>${icon('shelf')} Стеллажи <span class="muted small">${cap.used}/${cap.total}</span></h3>
-          ${S.shelves.length ? S.shelves.map(sh => shelfView(sh)).join('') : `<div class="empty">Стеллажей нет. Купите в магазине (в фазе планирования).</div>`}
+        <div class="card pad logcard" data-r="log">
+          <div class="sec-head">
+            <div class="sh-ico">${icon('activity')}</div>
+            <div class="sh-t">Лента</div>
+          </div>
+          <div class="log">${S.log.slice(0, 7).map(l => `<div class="logline ${l.type}"><span class="lt">${l.t ? String(Math.floor(l.t/60)+9).padStart(2,'0')+':'+String(l.t%60).padStart(2,'0') : ''}</span>${esc(l.text)}</div>`).join('')}</div>
         </div>
       </section>
     </div>
@@ -3749,8 +4392,7 @@ function viewDay(){
     ${ab}
 
     <div class="sticky-cta" data-r="cta">
-      <div class="muted small">${hintText()}</div>
-      <div class="row">
+      <div class="row" style="gap:8px">
         ${speedButtons()}
         <button class="btn ghost" data-act="endDayNow">Завершить день</button>
       </div>
@@ -3833,16 +4475,42 @@ function shelfView(sh){
   const label = E.ZONES[sh.kind] || '';
   const selC = U.selClient ? S.clients.find(c => c.id === U.selClient) : null;
   const loc = selC ? E.clientLocation(S, selC.id) : null;
+  const isTarget = loc && loc.shelfId === sh.id;
+  const open = !!U.selBox || isTarget || !!U.shelfOpen[sh.id];
 
-  return `
-  <div class="shelf">
-    <div class="shelf-head">
-      <span class="zone-tag z-${sh.kind}">${E.shelfName(S, sh.id).replace('Стеллаж ','Стеллаж ')} · ${label}</span>
-      <span class="muted small">${used}/${sh.cap} · <span class="ico-inline">${icon('pin')}${E.fetchMinutes(S, sh.id)} мин</span></span>
-    </div>
+  const strip = `<div class="sr-bar">${sh.cells.map((c, i) => {
+    const hint = U.selBox && !c;
+    const target = isTarget && loc.cellIdx === i;
+    return `<span class="sr-cell ${c ? 'on' : ''} ${hint || target ? 'hint' : ''}"></span>`;
+  }).join('')}</div>`;
+
+  if (!open){
+    return `<div class="shelf-row">
+      <button class="sr-top" data-act="shelfToggle" data-id="${sh.id}" style="width:100%; background:none; border:0; padding:0; color:inherit; font:inherit; text-align:left">
+        <span>${E.shelfName(S, sh.id)}</span>
+        <span class="sr-z">${label}</span>
+        <span class="sr-meta">
+          <span>${used}/${sh.cap}</span>
+          <span class="ico-inline">${icon('pin')}${E.fetchMinutes(S, sh.id)} мин</span>
+          ${icon('chevron')}
+        </span>
+      </button>
+      ${strip}
+    </div>`;
+  }
+
+  return `<div class="shelf-row open">
+    <button class="sr-top" data-act="shelfToggle" data-id="${sh.id}" style="width:100%; background:none; border:0; padding:0; color:inherit; font:inherit; text-align:left">
+      <span>${E.shelfName(S, sh.id)}</span>
+      <span class="sr-z">${label}</span>
+      <span class="sr-meta">
+        <span>${used}/${sh.cap}</span>
+        <span class="ico-inline">${icon('pin')}${E.fetchMinutes(S, sh.id)} мин</span>
+      </span>
+    </button>
     <div class="cells">
       ${sh.cells.map((cell, i) => {
-        const isLoc = loc && loc.shelfId === sh.id && loc.cellIdx === i;
+        const isLoc = isTarget && loc.cellIdx === i;
         return `<button class="cell ${cell ? 'full' : 'empty'} ${isLoc ? 'located' : ''}" data-act="cell" data-shelf="${sh.id}" data-idx="${i}"
           title="${cell ? cell.code + ' · ' + cell.size : 'пусто'}">${i + 1}</button>`;
       }).join('')}
@@ -3857,26 +4525,28 @@ function clientCard(c){
   const handsForMe = S.hands && c.code === S.hands.code;
   const patiencePct = pct(c.patience, c.maxPatience);
   const myTask = busy && busy.clientId === c.id;
+  const urg = patiencePct < 30 ? 'bad' : patiencePct < 60 ? 'warn' : '';
 
   if (c.returnItem){
-    const left = Math.max(0, Math.round(c.patience));
-    return `<div class="client return" data-act="takeReturn" data-id="${c.id}">
-      <div class="cl-tap static">
+    return `<div class="client return ${urg}">
+      <div class="cl-tap">
         <div class="cl-code">${icon('returns')} Возврат ${esc(c.returnCode)}</div>
-        <div class="muted small">Принёс посылку назад · <span data-live="patn:${c.id}">${left} мин</span></div>
-        <div class="bar"><i class="${patiencePct < 30 ? 'danger' : patiencePct < 60 ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
+        <div class="cl-sub">принёс посылку назад</div>
+        <div class="bar"><i class="${urg === 'bad' ? 'danger' : urg === 'warn' ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
       </div>
-      <button class="btn small serve" data-act="takeReturn" data-id="${c.id}">Принять</button>
+      <span class="cl-left ${urg}" data-live="patn:${c.id}" style="margin-right:6px">${Math.max(0, Math.round(c.patience))} мин</span>
+      <button class="btn serve ghost" data-act="takeReturn" data-id="${c.id}">Принять</button>
     </div>`;
   }
 
   if (c.consult){
-    return `<div class="client consult" data-act="consult" data-id="${c.id}">
-      <div class="cl-tap static">
-        <div class="cl-code">Вопрос</div>
-        <div class="muted small">Клиент с вопросом</div>
+    return `<div class="client ${urg}">
+      <div class="cl-tap">
+        <div class="cl-code">${icon('help')} Вопрос в зале</div>
+        <div class="cl-sub">клиент ждёт консультации</div>
+        <div class="bar"><i class="${urg === 'bad' ? 'danger' : urg === 'warn' ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
       </div>
-      <button class="btn small" data-act="consult" data-id="${c.id}">Ответить</button>
+      <button class="btn serve ghost" data-act="consult" data-id="${c.id}">Ответить</button>
     </div>`;
   }
 
@@ -3885,20 +4555,21 @@ function clientCard(c){
              + (c.tryon ? '<span class="tag">примерка</span>' : '');
 
   let action = '';
-  if (myTask) action = '<div class="cl-act">в пути…</div>';
-  else if (handsForMe) action = `<button class="btn small primary" data-act="give" data-id="${c.id}">Выдать</button>`;
-  else if (sel && loc) action = `<button class="btn small primary" data-act="fetch" data-id="${c.id}">Взять</button>`;
-  else if (sel) action = `<div class="cl-act">нет на полке</div>`;
-  else action = `<button class="btn small serve" data-act="pickClient" data-id="${c.id}">Обслужить</button>`;
+  if (myTask) action = `<div class="cl-act small" style="color:var(--txt-3); font-weight:700">в пути…</div>`;
+  else if (handsForMe) action = `<button class="btn serve" data-act="give" data-id="${c.id}">Выдать</button>`;
+  else if (sel && loc) action = `<button class="btn serve" data-act="fetch" data-id="${c.id}">Взять</button>`;
+  else if (sel) action = `<div class="cl-act small" style="color:var(--bad); font-weight:700">нет на полке</div>`;
+  else action = `<button class="btn serve ${urg === 'bad' ? '' : 'ghost'}" data-act="pickClient" data-id="${c.id}">Обслужить</button>`;
 
-  return `<div class="client ${sel ? 'sel' : ''} ${c.type} ${handsForMe ? 'ready' : ''}" data-act="pickClient" data-id="${c.id}">
+  return `<div class="client ${sel ? 'sel' : ''} ${urg} ${handsForMe ? 'ready' : ''}">
     <button class="cl-tap" data-act="pickClient" data-id="${c.id}">
-      <div class="cl-code">${c.code} ${tags}<span class="cl-left ${patiencePct < 30 ? 'bad' : patiencePct < 60 ? 'warn' : ''}" data-live="patn:${c.id}">${Math.max(0, Math.round(c.patience))} мин</span></div>
-      <div class="bar"><i class="${patiencePct < 30 ? 'danger' : patiencePct < 60 ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
+      <div class="cl-code">${c.code} ${tags}</div>
+      <div class="bar"><i class="${urg === 'bad' ? 'danger' : urg === 'warn' ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
       ${sel && loc ? `<div class="cl-addr">${icon('pin')} ${esc(loc.address)}</div>` : ''}
-      ${sel && !loc && !handsForMe ? `<div class="cl-addr bad">Посылки нет на полке</div>` : ''}
-      ${myTask ? `<div class="cl-addr">${busy.kind === 'fetch' ? 'Иду за посылкой' : 'Отдаю заказ'} · <span data-live="clt:${c.id}">${busy.t}</span> мин</div>` : ''}
+      ${sel && !loc && !handsForMe ? `<div class="cl-addr bad">посылки нет на полке</div>` : ''}
+      ${myTask ? `<div class="cl-addr">${busy.kind === 'fetch' ? 'иду за посылкой' : 'отдаю заказ'} · <span data-live="clt:${c.id}">${busy.t}</span> мин</div>` : ''}
     </button>
+    <span class="cl-left ${urg}" data-live="patn:${c.id}">${Math.max(0, Math.round(c.patience))} мин</span>
     ${action}
   </div>`;
 }
@@ -3907,41 +4578,69 @@ function clientCard(c){
 function viewReport(){
   const r = S.report || { ds:S.dayStats, costs:0, avgSla:0, missedRate:0, p:E.premOf(S) };
   const ds = r.ds;
-  const rows = [
-    ['Выручка за заказы', ds.revenue, 'good'],
-    ['Чаевые', ds.tips, 'good'],
-    ds.events ? ['События дня', ds.events, ds.events > 0 ? 'good' : 'bad'] : null,
-    ['Аренда', -ds.rent, 'bad'],
-    ['Зарплаты', -ds.payroll, 'bad'],
-    ['Коммуналка', -ds.util, 'bad'],
-    ['Штрафы', -ds.fines, 'bad'],
-    ds.loan ? ['Кредит', -ds.loan, 'bad'] : null,
-    ds.tax ? ['Налог', -ds.tax, 'bad'] : null,
+  const good = ds.net >= 0;
+  const income = [
+    ['bag', 'Выручка за заказы', ds.revenue],
+    ['star', 'Чаевые', ds.tips],
+    ds.events ? ['sparkle', 'События дня', ds.events] : null,
   ].filter(Boolean);
+  const spend = [
+    ['store', 'Аренда', -ds.rent],
+    ['users', 'Зарплаты', -ds.payroll],
+    ['zap', 'Коммуналка', -ds.util],
+    ['alert', 'Штрафы', -ds.fines],
+    ds.loan ? ['card', 'Кредит', -ds.loan] : null,
+    ds.tax ? ['flag', 'Налог', -ds.tax] : null,
+    ds.repairs ? ['wrench', 'Ремонт техники', -ds.repairs] : null,
+  ].filter(Boolean);
+
+  const row = ([ico, label, val]) => `<div class="pnl-row">
+      <span class="pl-ico">${icon(ico)}</span>
+      <span class="pl-l">${label}</span>
+      <b class="${val === 0 ? 'muted' : val > 0 ? 'good' : 'bad'}">${val === 0 ? '0 ₽' : (val > 0 ? '+' : '−') + fmt(Math.abs(val)) + ' ₽'}</b>
+    </div>`;
 
   return `
   ${viewHud()}
   <main class="wrap">
-    <section class="card pad" data-r="rep">
+    <section class="card hero pad" data-r="rep">
       <div class="kicker">Итоги дня</div>
-      <h2>День ${S.day}</h2>
-      <div class="report-grid">
-        <div class="rn"><b>${ds.issued}</b><span>выдано</span></div>
-        <div class="rn"><b class="${ds.missed ? 'bad' : ''}">${ds.missed}</b><span>упущено</span></div>
-        <div class="rn"><b>${Math.round(r.avgSla) || 0} мин</b><span>средняя выдача</span></div>
-        <div class="rn"><b>${S.nps.toFixed(2)}</b><span>NPS</span></div>
+      <h2 class="brief-day">День ${S.day}</h2>
+      <div class="rep-net ${good ? 'good' : 'bad'}">
+        <div class="rn-l">${good ? icon('zap') : icon('alert')} ${good ? 'Прибыль за день' : 'Убыток за день'}</div>
+        <div class="rn-v">${ds.net > 0 ? '+' : ''}${fmt(ds.net)} <small>₽</small></div>
       </div>
-      <div class="pnl">${rows.map(([label, val, cls]) => `
-        <div class="pnl-row"><span>${label}</span><b class="${val === 0 ? 'muted' : cls}">${val === 0 ? '0 ₽' : (val > 0 ? '+' : '') + fmt(val) + ' ₽'}</b></div>`).join('')}
-        <div class="pnl-row total"><span>Итого за день</span><b class="${ds.net >= 0 ? 'good' : 'bad'}">${ds.net > 0 ? '+' : ''}${fmt(ds.net)} ₽</b></div>
+      <div class="tiles" style="margin-top:12px">
+        ${tile('', 'check', 'выдано', ds.issued)}
+        ${tile(ds.missed ? 'bad' : 'good', 'users', 'упущено', ds.missed)}
+        ${tile('', 'star', 'NPS', S.nps.toFixed(2))}
       </div>
-      ${ds.onPrepay ? `<div class="muted small" style="margin-bottom:6px">${icon('manager')} ${ds.onPrepay} сотрудник(ов) работают за счёт аванса — зарплата за них не списывалась.</div>` : ''}
-      ${(ds.returned || ds.packed || ds.shipped) ? `<div class="muted small ico-inline" style="margin:6px 0 2px; display:flex; gap:12px; flex-wrap:wrap">
-        ${ds.returned ? `<span>${icon('returns')} принято возвратов: ${ds.returned}</span>` : ''}
-        ${ds.shipped ? `<span>${icon('truck')} отправлено: ${ds.shipped}</span>` : ''}
-        ${ds.packed ? `<span>${icon('pack')} упаковано заказов: ${ds.packed}</span>` : ''}
-      </div>` : ''}
-      <div class="muted small">${reportAdvice(r)}</div>
+      <div class="tiles" style="margin-top:8px; grid-template-columns:1fr 1fr">
+        ${tile('', 'clock', 'средняя выдача', (Math.round(r.avgSla) || 0), 'мин')}
+        ${tile('', 'returns', 'возвратов', ds.returned || 0)}
+      </div>
+    </section>
+
+    <section class="card pad" data-r="pnl">
+      <div class="sec-head">
+        <div class="sh-ico">${icon('chart')}</div>
+        <div class="sh-t">Деньги</div>
+        <div class="sh-meta">расходы <b>${fmt(r.costs)}</b> ₽</div>
+      </div>
+      <div class="pnl">${income.map(row).join('')}${spend.map(row).join('')}</div>
+      <div class="pnl-total">
+        <span>Итого за день</span>
+        <b class="${good ? 'good' : 'bad'}">${ds.net > 0 ? '+' : ''}${fmt(ds.net)} ₽</b>
+      </div>
+      ${ds.onPrepay ? `<div class="muted small" style="margin-top:8px">${ds.onPrepay} сотрудник(ов) работают за счёт аванса — зарплата не списывалась.</div>` : ''}
+    </section>
+
+    <section class="card pad advice" data-r="advice">
+      <div class="sec-head">
+        <div class="sh-ico">${icon('sparkle')}</div>
+        <div class="sh-t">Что улучшить</div>
+      </div>
+      <div class="adv-text">${reportAdvice(r)}</div>
     </section>
 
     ${S.over ? `<section class="card pad gameover">
@@ -3950,8 +4649,7 @@ function viewReport(){
         <p class="muted small">Прожито дней: ${S.day}. Выдано заказов: ${S.history.reduce((a,h)=>a+h.issued,0)}. Финальный уровень: ${S.lvl}.</p>
         <button class="btn primary big" data-act="restart">Начать заново</button>
       </section>`
-    : `<div class="sticky-cta">
-        <div class="muted small">${hintText()}</div>
+    : `<div class="sticky-cta" data-r="cta">
         <button class="btn primary big" data-act="nextDay">Следующий день ${icon('chevron')}</button>
       </div>`}
   </main>`;
@@ -4152,6 +4850,57 @@ async function act(type, d){
       if (!c) { toast('Некого обслуживать', 'bad'); break; }
       if (c.returnItem) act('takeReturn', { id: c.id });
       else { U.selClient = c.id; U.selBox = null; beep(680,0.05); }
+      break;
+    }
+    case 'noop': break;
+    case 'shelfToggle': {
+      U.shelfOpen[d.id] = !U.shelfOpen[d.id];
+      render();
+      break;
+    }
+    case 'findOrder': {
+      const inp = document.querySelector('#order-q');
+      const raw = inp ? inp.value : '';
+      const res = E.findByCode(S, raw);
+      if (!res){ toast('Такого кода нет в пункте', 'bad'); break; }
+      if (res.kind === 'client'){
+        U.selClient = res.client.id;
+        if (res.loc) toast(`Клиент ${res.client.code} · ${res.loc.address}`, 'good');
+        else toast(`Клиент ${res.client.code} найден`, 'good');
+      } else if (res.kind === 'receiving'){
+        U.selBox = res.pkg.id;
+        toast(`Посылка ${res.pkg.code} в зоне приёмки`, 'good');
+      } else if (res.kind === 'shelf'){
+        U.shelfOpen[res.shelf.id] = true;
+        toast(`${res.pkg.code} · ${E.shelfName(S, res.shelf.id)} · ячейка ${res.idx + 1}`, 'good');
+      } else if (res.kind === 'return'){
+        toast(`Возврат ${res.ret.code} на стойке`, 'good');
+      }
+      if (inp) inp.value = '';
+      render();
+      break;
+    }
+    case 'repairAll': {
+      const broken = E.brokenItems(S);
+      let done = 0, spent = 0;
+      for (const id of broken){
+        const r = E.repair(S, id);
+        if (r.ok){ done++; spent += r.cost; }
+      }
+      if (done) toast(`Отремонтировано ${done} · −${fmt(spent)} ₽`, 'good');
+      else toast('Не хватает денег на ремонт', 'bad');
+      break;
+    }
+    case 'preset': {
+      const r = E.applyPreset(S, d.id);
+      if (r.ok){ U.preset = d.id; toast(`Схема «${E.LAYOUT_PRESETS[d.id].name}»`, 'good'); }
+      else toast(r.msg || 'Не вышло', 'bad');
+      break;
+    }
+    case 'bundle': {
+      const r = E.buyBundle(S, d.id);
+      if (r.ok) toast(`Набор собран · −${fmt(r.cost)} ₽`, 'good');
+      else toast(r.msg || 'Нельзя', 'bad');
       break;
     }
     case 'skipSplash': {
