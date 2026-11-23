@@ -225,6 +225,21 @@ function regionHtml(el){
   return c.outerHTML;
 }
 
+function syncChrome(){
+  const root = document.documentElement;
+  const hud = document.querySelector('.hud');
+  document.body.classList.toggle('has-hud', !!hud);
+  if (hud){
+    const h = Math.round(hud.getBoundingClientRect().height);
+    if (h > 0) root.style.setProperty('--hud-h', h + 'px');
+  }
+  // тост поднимается ровно над нижними панелями (панель дела + кнопка «завершить день»)
+  const ab = document.querySelector('.actionbar');
+  const cta = document.querySelector('.sticky-cta');
+  const lift = (ab ? ab.getBoundingClientRect().height + 10 : 0) + (cta ? cta.getBoundingClientRect().height : 0) + 12;
+  root.style.setProperty('--toast-bottom', Math.round(lift) + 'px');
+}
+
 function paint(html){
   const app = $app();
   const tpl = document.createElement('template');
@@ -237,6 +252,7 @@ function paint(html){
   if (!cur || curShell !== newShell || !fresh.querySelector('[data-r]')){
     app.innerHTML = html;
     paintCount++;
+    syncChrome();
     return;
   }
 
@@ -244,7 +260,7 @@ function paint(html){
   for (const el of regions){
     const key = el.getAttribute('data-r');
     const old = app.querySelector(`[data-r="${key}"]`);
-    if (!old){ app.innerHTML = html; paintCount++; return; }
+    if (!old){ app.innerHTML = html; paintCount++; syncChrome(); return; }
     if (regionHtml(old) !== regionHtml(el)){
       old.replaceWith(el);
       patchCount++;
@@ -254,6 +270,7 @@ function paint(html){
   const ovlNew = fresh.querySelector('#ovl');
   const ovlOld = app.querySelector('#ovl');
   if (ovlNew && ovlOld && ovlOld.innerHTML !== ovlNew.innerHTML) ovlOld.innerHTML = ovlNew.innerHTML;
+  syncChrome();
 }
 
 /* Быстрые обновления: цифры и полоски, которые меняются каждую минуту */
@@ -900,7 +917,7 @@ function clientCard(c){
   const myTask = busy && busy.clientId === c.id;
 
   if (c.consult){
-    return `<div class="client consult">
+    return `<div class="client consult" data-act="consult" data-id="${c.id}">
       <div class="cl-tap static">
         <div class="cl-code">Вопрос</div>
         <div class="muted small">Клиент с вопросом</div>
@@ -917,9 +934,10 @@ function clientCard(c){
   if (myTask) action = '<div class="cl-act">в пути…</div>';
   else if (handsForMe) action = `<button class="btn small primary" data-act="give" data-id="${c.id}">Выдать</button>`;
   else if (sel && loc) action = `<button class="btn small primary" data-act="fetch" data-id="${c.id}">Взять</button>`;
-  else action = `<div class="cl-act">${sel ? 'нет на полке' : 'обслужить'}</div>`;
+  else if (sel) action = `<div class="cl-act">нет на полке</div>`;
+  else action = `<button class="btn small serve" data-act="pickClient" data-id="${c.id}">Обслужить</button>`;
 
-  return `<div class="client ${sel ? 'sel' : ''} ${c.type} ${handsForMe ? 'ready' : ''}">
+  return `<div class="client ${sel ? 'sel' : ''} ${c.type} ${handsForMe ? 'ready' : ''}" data-act="pickClient" data-id="${c.id}">
     <button class="cl-tap" data-act="pickClient" data-id="${c.id}">
       <div class="cl-code">${c.code} ${tags}</div>
       <div class="bar"><i class="${patiencePct < 30 ? 'danger' : patiencePct < 60 ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>

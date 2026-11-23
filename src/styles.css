@@ -52,7 +52,7 @@ p{margin:0 0 10px}
 .hud{
   position:sticky; top:0; z-index:20;
   display:flex; align-items:center; gap:12px; justify-content:space-between;
-  padding:10px 12px; margin:0 -12px 10px;
+  padding:calc(10px + env(safe-area-inset-top, 0px)) 12px 10px; margin:0 -12px 10px;
   background:rgba(8,12,23,.86); backdrop-filter:blur(14px);
   border-bottom:1px solid var(--line);
 }
@@ -411,7 +411,7 @@ p{margin:0 0 10px}
 .mm-token.staff::after{content:'';}
 
 /* оболочка-регион: не влияет на раскладку, но позволяет патчить участки */
-.shell{display:contents}
+.shell{display:block}
 
 /* плавность: анимации не перезапускаются, потому что DOM больше не пересобирается */
 .card{transition:border-color .18s ease, background .18s ease, box-shadow .18s ease}
@@ -655,7 +655,7 @@ b.ico-lead > .i{width:18px; height:18px; opacity:.85; color:var(--warn)}
 /* ---- тост: снизу по центру, над панелью действий ---- */
 .toast{
   top:auto; right:auto; left:50%; transform:translateX(-50%);
-  bottom:calc(136px + env(safe-area-inset-bottom));
+  bottom:calc(var(--toast-bottom, 96px) + env(safe-area-inset-bottom, 0px));
   pointer-events:none; max-width:calc(100vw - 32px);
   text-align:center; border-radius:99px; padding:10px 18px; font-size:13px; font-weight:600;
   animation:popUp .2s ease;
@@ -773,3 +773,32 @@ h2.sec{margin:26px 0 10px; font-size:12px; text-transform:uppercase; letter-spac
 .steps{margin:14px 0 4px; padding-left:20px; color:#c3cfe4; font-size:13.5px; line-height:1.55}
 .steps li{margin-bottom:7px}
 .steps li::marker{color:var(--accent); font-weight:800}
+
+/* ---- кнопка «Обслужить» в очереди ---- */
+.client{transition:border-color .15s, background .15s}
+.client .serve{
+  flex-shrink:0; min-height:34px; padding:6px 12px; font-size:12.5px; font-weight:700;
+  color:#dfe9ff; border-color:rgba(255,255,255,.16);
+  background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.03));
+}
+.client .serve:hover{border-color:color-mix(in srgb, var(--accent) 60%, transparent); color:#fff}
+.client.sel .serve{border-color:color-mix(in srgb, var(--accent) 55%, transparent)}
+.client[data-act]:active{border-color:color-mix(in srgb, var(--accent) 45%, transparent)}
+
+/* ============================================================
+   Шапка всегда на виду на телефоне: фиксируем, контенту — отступ
+   (sticky в некоторых мобильных браузерах «уезжает» вместе с контентом)
+   ============================================================ */
+@media (max-width:820px){
+  .has-hud .hud{
+    position:fixed; top:0; left:0; right:0; z-index:22;
+    margin:0;
+    padding:calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;
+    background:linear-gradient(180deg, #0a101c 62%, rgba(10,16,28,.93));
+    border-bottom:1px solid var(--line);
+    box-shadow:0 10px 26px -18px #000;
+  }
+  .has-hud .shell{padding-top:var(--hud-h, 58px)}
+  .hud .iconbtn{min-width:38px; min-height:38px}
+  .hud-right{gap:8px}
+}
