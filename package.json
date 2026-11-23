@@ -1,0 +1,18 @@
+{
+  "name": "pvz-city",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ПВЗ-Сити — симулятор пункта выдачи заказов (web / PWA / Telegram / Android)",
+  "scripts": {
+    "build": "node build.mjs",
+    "sim": "node sim.mjs --days=30 --strategy=balanced",
+    "test": "node test/economy.mjs && node test/smoke.mjs",
+    "playtest": "node test/playtest.mjs",
+    "shots": "node shot.mjs",
+    "serve": "npx serve .",
+    "icons": "node make-icons.mjs",
+    "pwa": "node test/pwa.mjs",
+    "serve:http": "python3 -m http.server 8123"
+  }
+}

@@ -1,0 +1,25 @@
+# зависимости и кеши
+node_modules/
+.cache/
+.npm/
+.arena/
+.venv/
+__pycache__/
+
+# тестовые артефакты
+shots/*.png
+!shots/.gitkeep
+test/tmp/
+*.log
+
+# секреты: ключи деплоя и токены никогда не попадают в репозиторий
+deploy-key/
+*.pem
+*.key
+.env
+.env.*
+
+# система и артефакты песочницы
+.sudo_as_admin_successful
+.DS_Store
+Thumbs.db

@@ -1,0 +1,3635 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#080c17" />
+<meta name="description" content="ПВЗ-Сити — симулятор управления пунктом выдачи заказов" />
+<title>ПВЗ-Сити — симулятор пункта выдачи</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="icon-192.png" sizes="192x192" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="ПВЗ-Сити" />
+<meta name="color-scheme" content="dark" />
+<meta name="format-detection" content="telephone=no" />
+<meta property="og:title" content="ПВЗ-Сити — симулятор пункта выдачи" />
+<meta property="og:description" content="Управляйте пунктом выдачи заказов: поставки, склад, клиенты, команда, KPI и экономика." />
+<meta property="og:image" content="icon-512.png" />
+<meta property="og:type" content="website" />
+<style>
+:root{
+  --bg:#070a12; --bg2:#0b1120; --panel:#101828; --panel2:#151f33;
+  --line:rgba(255,255,255,.075); --line-strong:rgba(255,255,255,.14);
+  --text:#eef2fb; --muted:#8b9ab8;
+  --accent:#5b8cff; --accent2:#2f5fe0;
+  --good:#3ddc97; --bad:#ff6b6b; --warn:#ffb454;
+  --r:18px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; padding:0; min-height:100%}
+body{
+  background:
+    radial-gradient(900px 500px at 15% -10%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%),
+    radial-gradient(700px 400px at 100% 0%, #1b2a4a55, transparent 70%),
+    var(--bg);
+  color:var(--text);
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,"Helvetica Neue",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+button{font:inherit; color:inherit; cursor:pointer}
+h1,h2,h3{margin:0 0 6px; line-height:1.2; letter-spacing:-0.01em}
+h1{font-size:28px} h2{font-size:21px} h3{font-size:15px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted)}
+p{margin:0 0 10px}
+.muted{color:var(--muted)}
+.small{font-size:12.5px}
+.good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)} .ok{color:var(--good)}
+
+#app{max-width:1080px; margin:0 auto; padding:0 12px}
+
+/* ---------- кнопки ---------- */
+.btn{
+  border:1px solid var(--line); background:linear-gradient(180deg,#1a2540,#141d33);
+  padding:9px 14px; border-radius:12px; font-weight:600; font-size:14px;
+  transition:transform .08s ease, filter .15s ease, border-color .15s;
+}
+.btn:hover{filter:brightness(1.12)}
+.btn:active{transform:scale(.97)}
+.btn.primary{
+  background:linear-gradient(180deg,var(--accent),var(--accent2));
+  border-color:transparent; color:#fff; box-shadow:0 8px 24px -8px var(--accent);
+}
+.btn.big{padding:14px 22px; font-size:16px; border-radius:14px}
+.btn.small{padding:6px 10px; font-size:12.5px; border-radius:10px}
+.btn.ghost{background:transparent}
+.btn:disabled,.btn.dis{opacity:.4; cursor:not-allowed}
+.spd{width:38px; height:34px; border-radius:10px; border:1px solid var(--line); background:#131c31; font-size:12px}
+.spd.on{background:var(--accent); border-color:transparent; color:#fff; font-weight:700}
+.speeds{display:flex; gap:4px}
+
+/* ---------- HUD ---------- */
+.hud{
+  position:sticky; top:0; z-index:20;
+  display:flex; align-items:center; gap:12px; justify-content:space-between;
+  padding:10px 12px; margin:0 -12px 10px;
+  background:rgba(8,12,23,.86); backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.hud-day{font-weight:800; font-size:15px}
+.hud-clock{font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums}
+.hud-mid{display:flex; gap:16px}
+.metric{display:flex; flex-direction:column; line-height:1.15}
+.m-label{font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted)}
+.m-val{font-weight:700; font-variant-numeric:tabular-nums; font-size:14px}
+.hud-right{display:flex; align-items:center; gap:10px}
+.lvl{min-width:74px}
+.lvl span{font-size:11px; color:var(--muted)}
+.lvl .tiny{font-size:9.5px; color:#5d6f92}
+
+/* ---------- карточки ---------- */
+.card{
+  background:linear-gradient(180deg, rgba(32,46,76,.85), rgba(16,23,40,.94));
+  border:1px solid #26354f; border-radius:var(--r);
+  margin-bottom:14px;
+  box-shadow:0 1px 0 #ffffff0d inset, 0 14px 34px -26px #000;
+}
+.card.pad{padding:16px}
+.card.sel{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 12px 30px -18px var(--accent)}
+.wrap{padding-bottom:96px}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
+@media (max-width:820px){ .grid2{grid-template-columns:1fr} .grid3{grid-template-columns:1fr} }
+
+/* ---- компактный HUD на телефоне ---- */
+@media (max-width:600px){
+  .hud{gap:8px; padding:8px 10px}
+  .hud-day{font-size:13px}
+  .hud-clock{font-size:11px}
+  .hud-mid{gap:10px}
+  .m-label{font-size:9px}
+  .m-val{font-size:12.5px}
+  .hud-mid .metric:nth-child(3){display:none}   /* контракт уезжает в карточку */
+  .hud-right{gap:6px}
+  .lvl{display:none}
+  .spd{width:32px; height:30px; font-size:11px}
+  .btn.small{padding:6px 8px; font-size:12px}
+  .sticky-cta{padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
+  .sticky-cta .muted{display:none}
+  .sticky-cta .btn.big{padding:12px 16px; font-size:15px; flex:1}
+  .sticky-cta .row{flex:1}
+  .wrap{padding-bottom:124px}
+  .toast{top:52px; right:8px; font-size:12.5px; padding:7px 11px; max-width:70%}
+  .cell{border-radius:8px}
+  .cell .cd{font-size:10px}
+}
+.row{display:flex; gap:8px; align-items:center}
+.row-between{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px}
+.kicker{font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--accent); font-weight:700}
+.chips{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+.chip{font-size:11px; padding:3px 8px; border-radius:999px; background:#ffffff0f; border:1px solid var(--line); color:var(--muted)}
+.bar{height:6px; background:#ffffff12; border-radius:99px; overflow:hidden; margin-top:6px}
+.bar.thin{height:4px}
+.bar i{display:block; height:100%; width:0%; background:var(--accent); border-radius:99px; transition:width .12s linear}
+.bar i.warn{background:var(--warn)} .bar i.danger{background:var(--bad)}
+.empty{padding:16px 12px; min-height:0; text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:12px}
+.alert{padding:10px 12px; border-radius:12px; margin-bottom:10px; font-size:13.5px; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.warnline{background:#f59e0b1f; border:1px solid #f59e0b55; color:#ffd28a}
+.busyline{background:color-mix(in srgb, var(--accent) 18%, transparent); border:1px solid color-mix(in srgb, var(--accent) 45%, transparent)}
+.busyline .bar{flex:1; min-width:80px; margin:0}
+
+/* ---------- онбординг ---------- */
+.start{padding:26px 0 40px}
+.logo{display:flex; gap:14px; align-items:center; margin-bottom:16px}
+.logo-mark{
+  width:54px; height:54px;border-radius:16px; display:grid; place-items:center; font-weight:900; font-size:15px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2)); box-shadow:0 10px 30px -10px var(--accent);
+}
+.lead{color:var(--muted); max-width:620px; margin-bottom:22px}
+.sec{margin:22px 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted)}
+.brand{position:relative; text-align:left}
+.brand-dot{width:26px; height:26px; border-radius:9px; margin-bottom:8px}
+.card-title{font-weight:700; font-size:15px; margin-bottom:2px}
+.card-sub{font-size:12.5px; color:var(--muted)}
+.card[data-act]{text-align:left; width:100%; background:linear-gradient(180deg,#18233c,#111a2c); border:1px solid var(--line); border-radius:var(--r); padding:14px; transition:.15s}
+.card[data-act]:hover{transform:translateY(-2px); border-color:#33507e}
+.card[data-act].sel{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 14px 34px -20px var(--accent)}
+.card[data-act]:disabled{opacity:.45; cursor:not-allowed}
+.lock{font-size:10px; color:var(--warn); border:1px solid #f59e0b55; padding:1px 6px; border-radius:99px}
+.start-foot{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:24px; flex-wrap:wrap}
+
+/* ---------- прогноз ---------- */
+.day-brief .brief-top{display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:12px}
+.brief-nums{display:flex; gap:18px}
+.bn{display:flex; flex-direction:column; text-align:right}
+.bn b{font-size:19px; font-variant-numeric:tabular-nums}
+.bn span{font-size:11px; color:var(--muted)}
+.forecast{display:flex; align-items:flex-end; gap:5px; height:96px; padding:8px; background:#0b1222; border-radius:12px; border:1px solid var(--line)}
+.fbar{flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%; gap:4px}
+.fbar i{width:100%; border-radius:4px 4px 2px 2px; background:linear-gradient(180deg,var(--accent),color-mix(in srgb,var(--accent) 30%,#0b1222)); min-height:3px}
+.fbar span{font-size:9px; color:var(--muted)}
+.forecast-legend{margin-top:6px}
+
+/* ---------- таблицы метрик ---------- */
+.kpi{display:flex; flex-direction:column; gap:6px; margin-bottom:8px}
+.kpi-row{display:grid; grid-template-columns:1fr auto auto; gap:10px; align-items:center; font-size:13.5px; padding:5px 0; border-bottom:1px solid #ffffff08}
+.kpi-row b{font-variant-numeric:tabular-nums}
+
+/* ---------- табы ---------- */
+.tabs{display:flex; gap:6px; margin-bottom:10px}
+.tab{flex:1; padding:10px; border-radius:12px; border:1px solid var(--line); background:#111a2c; font-size:13.5px; font-weight:600; color:var(--muted)}
+.tab.on{background:color-mix(in srgb,var(--accent) 22%, #111a2c); color:#fff; border-color:var(--accent)}
+.tab-body{min-height:180px}
+
+/* ---------- магазин ---------- */
+.shop{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+@media (max-width:720px){ .shop{grid-template-columns:1fr} }
+.item{display:flex; gap:10px; align-items:center; padding:10px; border:1px solid var(--line); border-radius:12px; background:#0f1729}
+.item.locked{opacity:.5}
+.item-icon{font-size:20px; width:30px; text-align:center}
+.item-main{flex:1; min-width:0}
+.item-name{font-weight:600; font-size:13.5px}
+.staff-list{display:flex; flex-direction:column; gap:8px}
+.staff-item{display:flex; gap:10px; align-items:center; padding:10px; border:1px solid var(--line); border-radius:12px; background:#0f1729}
+.staff-item.cand{background:#101c30}
+.avatar{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-weight:800;background:color-mix(in srgb,var(--accent) 30%,#16203a)}
+.avatar.alt{background:#243352}
+.staff-right{display:flex; flex-direction:column; align-items:flex-end; gap:4px}
+
+/* ---------- склад / политики ---------- */
+.policy-group{padding:12px 0; border-bottom:1px solid #ffffff08}
+.policy-title{font-size:13px; font-weight:700; margin-bottom:8px}
+.seg{display:flex; gap:6px; flex-wrap:wrap}
+.seg-b{flex:1; min-width:150px; padding:9px; border-radius:10px; border:1px solid var(--line); background:#0f1729; font-size:13px}
+.seg-b.on{background:color-mix(in srgb,var(--accent) 25%,#0f1729); border-color:var(--accent)}
+
+/* ---------- день ---------- */
+.day-grid{display:grid; gap:12px; grid-template-columns:1.15fr .85fr; grid-template-areas:"a b" "c b"}
+.sec-a{grid-area:a} .sec-b{grid-area:b} .sec-c{grid-area:c}
+@media (max-width:860px){
+  .day-grid{grid-template-columns:1fr; grid-template-areas:"a" "b" "c"}
+}
+.truck{border-color:color-mix(in srgb, var(--warn) 40%, var(--line)); background:linear-gradient(180deg, color-mix(in srgb, var(--warn) 12%, transparent), rgba(255,255,255,.012))}
+.chips.wrap{flex-wrap:wrap}
+.pk{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 10px; border-radius:10px; border:1px solid var(--line); background:#0f1729;
+  font-size:12.5px; font-variant-numeric:tabular-nums; font-weight:600;
+}
+.pk .sz{font-size:9.5px; color:var(--muted); border:1px solid var(--line); border-radius:6px; padding:0 4px}
+.pk.sel{border-color:var(--accent); background:color-mix(in srgb,var(--accent) 22%,#0f1729)}
+.pk.frag{border-left:3px solid var(--warn)}
+
+.shelf{margin-bottom:10px}
+.shelf-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px}
+.zone-tag{font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; padding:2px 7px; border-radius:99px; background:#ffffff10; color:var(--muted)}
+.z-std{color:#93c5fd} .z-frag{color:#fcd34d} .z-kgt{color:#c4b5fd}
+.cells{display:grid; grid-template-columns:repeat(8,1fr); gap:5px}
+@media (max-width:560px){ .cells{grid-template-columns:repeat(6,1fr); gap:6px} }
+@media (max-width:380px){ .cells{grid-template-columns:repeat(5,1fr)} }
+.cell{
+  position:relative; aspect-ratio:1; border-radius:10px; border:1px solid var(--line);
+  background:#0d1526; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-variant-numeric:tabular-nums; color:#5f7093; padding:0; overflow:hidden;
+}
+.cell.empty{color:#31415f; background:#0b1322; border-style:dashed; border-color:#1b2740}
+.cell.full{background:linear-gradient(180deg,#22314f,#182541); border-color:#3a5080; color:#eaf1ff; font-weight:700; box-shadow:inset 0 -2px 0 #ffffff08}
+.cell .cd{font-weight:700; font-size:11px; line-height:1}
+.cell .cl{font-size:8.5px; color:var(--muted); line-height:1}
+.cell.frag{box-shadow:inset 0 0 0 1px #f59e0b55}
+.cell .urg{position:absolute; top:2px; right:3px; font-size:9px; color:var(--warn); font-weight:800}
+.cell.match{
+  border-color:var(--good); background:linear-gradient(180deg,#14432a,#0f2f1f);
+  animation:pulse 1s infinite;
+}
+.cell.target{border-color:var(--accent); border-style:dashed; background:color-mix(in srgb,var(--accent) 12%,#0d1526)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #22c55e66}50%{box-shadow:0 0 0 4px #22c55e22}}
+
+.queue{display:flex; flex-direction:column; gap:7px}
+.client{
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  padding:9px 11px; border-radius:12px; border:1px solid var(--line); background:#0f1729;
+}
+.client.sel{border-color:var(--accent); background:color-mix(in srgb,var(--accent) 18%,#0f1729)}
+.client.hurry{border-left:3px solid var(--warn)}
+.client.scandal{border-left:3px solid var(--bad)}
+.client.consult{border-left:3px solid #64748b}
+.cl-main{flex:1; min-width:0}
+.cl-code{font-weight:700; font-variant-numeric:tabular-nums; display:flex; gap:6px; align-items:center}
+.cl-act{font-size:11px; color:var(--muted); white-space:nowrap}
+.tag{font-size:9.5px; padding:1px 6px; border-radius:99px; background:#f59e0b2a; color:#fcd34d}
+.tag.bad{background:#ef44442a; color:#fca5a5}
+
+.logcard{max-height:260px; overflow:auto}
+.log{display:flex; flex-direction:column; gap:5px; font-size:12.5px}
+.logline{display:flex; gap:8px; color:#c7d3ea; line-height:1.35}
+.logline .lt{color:#4b5c7d; font-variant-numeric:tabular-nums; font-size:11px; min-width:34px}
+.logline.bad{color:#fca5a5} .logline.good{color:#86efac} .logline.warn{color:#fcd34d}
+.logline.truck{color:#93c5fd} .logline.lvl{color:#c4b5fd}
+
+/* ---------- отчёт ---------- */
+.report-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:12px 0}
+.rn{background:#0f1729; border:1px solid var(--line); border-radius:12px; padding:10px; text-align:center}
+.rn b{display:block; font-size:18px; font-variant-numeric:tabular-nums}
+.rn span{font-size:11px; color:var(--muted)}
+.pnl{display:flex; flex-direction:column; gap:4px; margin:10px 0 12px}
+.pnl-row{display:flex; justify-content:space-between; font-size:13.5px; padding:5px 0; border-bottom:1px solid #ffffff08}
+.pnl-row.total{border-bottom:none; border-top:1px solid var(--line); margin-top:6px; padding-top:10px; font-size:15px}
+.gameover{border-color:#ef444455}
+
+/* ---------- sticky CTA ---------- */
+.sticky-cta{
+  position:fixed; left:0; right:0; bottom:0; z-index:30;
+  display:flex; justify-content:space-between; align-items:center; gap:12px;
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  background:rgba(8,12,23,.92); backdrop-filter:blur(16px); border-top:1px solid var(--line);
+  max-width:1080px; margin:0 auto;
+}
+.sticky-cta .muted{max-width:60%}
+@media (max-width:600px){ .sticky-cta .muted{display:none} }
+
+/* ---------- тост и модалка ---------- */
+.toast{
+  position:fixed; right:12px; top:56px; transform:none; pointer-events:none;
+  padding:10px 16px; border-radius:12px; font-size:13.5px; font-weight:600; z-index:60;
+  background:#1b2438; border:1px solid var(--line); box-shadow:0 16px 40px -16px #000;
+  animation:pop .18s ease;
+}
+.toast.bad{border-color:#ef444488; color:#fca5a5}
+.toast.good{border-color:#22c55e88; color:#86efac}
+@keyframes pop{from{opacity:0; transform:translateY(-6px)}to{opacity:1; transform:translateY(0)}}
+.modal-bg{position:fixed; inset:0; background:#04060c99; backdrop-filter:blur(3px); display:grid; place-items:center; z-index:70; padding:16px}
+.modal{
+  width:100%; max-width:440px; background:linear-gradient(180deg,#1a2440,#111a2c);
+  border:1px solid var(--line); border-radius:18px; padding:20px; box-shadow:0 30px 80px -30px #000;
+  animation:pop2 .18s ease;
+}
+@keyframes pop2{from{opacity:0; transform:scale(.96)}to{opacity:1; transform:scale(1)}}
+.opts{display:flex; flex-direction:column; gap:8px; margin:14px 0 10px}
+.opt{text-align:left; padding:12px; background:#0f1729}
+.opt:hover{border-color:var(--accent)}
+
+.help p{font-size:13.5px; color:#c7d3ea; margin:0 0 10px; line-height:1.5}
+.help b{color:#fff}
+
+.boot{padding:40px 24px; text-align:center; color:var(--muted); font-size:15px}
+
+.muted.tiny,.tiny{font-size:10.5px; color:#5d6f92}
+.staff-right .btn{white-space:nowrap}
+
+.cell.full::after{content:''; position:absolute; bottom:4px; width:4px; height:4px; border-radius:50%; background:#7ea6ea}
+.cell.located{
+  border-color:#f59e0b; border-width:2px; background:#3a2a0e; color:#ffe6b0; font-weight:800;
+  animation:locpulse 1.1s infinite;
+}
+@keyframes locpulse{0%,100%{box-shadow:0 0 0 0 #f59e0b88}50%{box-shadow:0 0 0 6px #f59e0b00}}
+
+.client{padding:9px 10px; gap:8px}
+.cl-tap{flex:1; min-width:0; background:transparent; border:0; text-align:left; padding:0; color:inherit; display:block}
+.cl-tap.static{cursor:default}
+.client.ready{border-color:var(--good); box-shadow:0 0 0 1px #22c55e66}
+.cl-addr{font-size:11.5px; color:#fcd34d; margin-top:4px; font-weight:600}
+.cl-addr.bad{color:#fca5a5}
+.handsline{background:#f59e0b1f; border:1px solid #f59e0b66; color:#ffd28a}
+
+/* ---------- редактор планировки ---------- */
+.room{
+  --cols:9; --rows:7;
+  position:relative; margin:10px auto 6px; width:100%; max-width:min(100%, 600px);
+  border:1px solid var(--line); border-radius:16px; padding:8px;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,.055) 1px, transparent 0) 0 0/16px 16px,
+    linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+.room-bg{display:grid; grid-template-columns:repeat(var(--cols),1fr); gap:4px}
+.rcell{
+  aspect-ratio:1; min-height:28px; border-radius:9px; padding:0;
+  border:1px solid rgba(255,255,255,.07); background:rgba(255,255,255,.035);
+  transition:background .12s, border-color .12s;
+}
+.rcell:hover{border-color:color-mix(in srgb,var(--accent) 70%, transparent); background:color-mix(in srgb,var(--accent) 14%, transparent)}
+.room-fix{
+  position:absolute; inset:8px; display:grid;
+  grid-template-columns:repeat(var(--cols),1fr); grid-template-rows:repeat(var(--rows),1fr);
+  gap:4px; pointer-events:none;
+}
+.rfix{
+  position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  border-radius:10px; pointer-events:auto; overflow:hidden; padding:3px;
+  background:linear-gradient(180deg, color-mix(in srgb,#3b5b95 70%, #141d2f), #182543);
+  border:1px solid rgba(255,255,255,.16); color:#dbe7ff;
+  box-shadow:0 1px 0 rgba(255,255,255,.12) inset, 0 6px 14px -10px #000;
+  font-size:10.5px; font-weight:650; letter-spacing:-0.01em;
+}
+.rfix.is-counter{
+  background:linear-gradient(180deg, color-mix(in srgb, var(--good) 42%, #14251c), #10251a);
+  border-color:color-mix(in srgb, var(--good) 45%, transparent); color:#eafff3;
+}
+.rfix.is-shelf{
+  background:linear-gradient(180deg, color-mix(in srgb, var(--warn) 34%, #241d0d), #20190c);
+  border-color:color-mix(in srgb, var(--warn) 40%, transparent); color:#ffeecb;
+}
+.rfix-ico{display:grid; place-items:center; opacity:.95}
+.rfix-name{font-size:9.5px; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; opacity:.9}
+.rfix.sm .rfix-name{display:none}
+.rfix.sm .rfix-ico .i{width:18px; height:18px}
+.rfix-dist{position:absolute; top:3px; left:4px; font-size:9px; color:#ffd479; font-weight:800; opacity:.9}
+.rfix-x{
+  position:absolute; top:0; right:0; width:18px; height:18px; border:0; padding:0;
+  background:rgba(0,0,0,.35); color:#cfe0ff; border-radius:0 9px 0 8px;
+  display:grid; place-items:center; opacity:0; transition:opacity .12s;
+}
+.rfix-x .i{width:11px; height:11px}
+.rfix:hover .rfix-x, .rfix.moving .rfix-x{opacity:1}
+@media (hover:none){ .rfix-x{opacity:.75} }
+.palette{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
+.pal{
+  display:flex; align-items:center; gap:9px; padding:9px 12px; border-radius:12px;
+  border:1px solid var(--line-strong); background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  font-size:13px; font-weight:600; min-height:44px; color:var(--text);
+}
+.pal:hover{border-color:rgba(255,255,255,.24)}
+.pal.sel{
+  border-color:color-mix(in srgb,var(--accent) 70%, transparent);
+  background:linear-gradient(180deg, color-mix(in srgb,var(--accent) 26%, transparent), color-mix(in srgb,var(--accent) 8%, transparent));
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 45%, transparent) inset;
+}
+.pal em{font-style:normal; color:var(--muted); font-size:11px; font-weight:600}
+.pal-ico{
+  width:28px; height:28px; border-radius:9px; display:grid; place-items:center;
+  background:rgba(255,255,255,.06); border:1px solid var(--line); color:color-mix(in srgb, var(--accent) 60%, #fff);
+}
+
+.rfix.moving{outline:2px solid var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 30%, transparent)}
+
+/* ---------- мини-карта зала ---------- */
+.minimap .mm-room{
+  display:grid; gap:2px; width:100%; max-width:360px; margin:8px auto 2px;
+  background:#0d1729; border-radius:10px; padding:6px; border:1px solid var(--line);
+  background-image:radial-gradient(circle, #1e2d49 1.1px, transparent 1.2px);
+  background-size:14px 14px; background-position:4px 4px;
+}
+.mm-fix{border-radius:3px; position:relative; overflow:hidden; min-height:6px}
+.mm-fix.counter{background:#1d7a44; border:1px solid #34d399}
+.mm-fix.shelf{background:#5a4517; border:1px solid #fbbf24cc}
+.mm-fix.fitting{background:#1e40af; border:1px solid #93c5fd}
+.mm-fix.plain{background:#2b4570; border:1px solid #5b7fb8}
+.mm-fill{position:absolute; left:0; right:0; bottom:0; background:#f59e0b55}
+.mm-target{
+  border-radius:3px; border:2px solid #fbbf24; background:#fbbf2433;
+  animation:mmPulse 1.1s ease-in-out infinite;
+}
+@keyframes mmPulse{50%{background:#fbbf2466}}
+.mm-token{
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; line-height:1; filter:drop-shadow(0 0 3px #000);
+  transition:none; z-index:2;
+}
+.mm-token.carry{font-size:17px}
+.mm-token.staff{font-size:12px; opacity:.92}
+.mm-token.staff::after{content:'';}
+
+/* оболочка-регион: не влияет на раскладку, но позволяет патчить участки */
+.shell{display:contents}
+
+/* плавность: анимации не перезапускаются, потому что DOM больше не пересобирается */
+.card{transition:border-color .18s ease, background .18s ease, box-shadow .18s ease}
+.btn{transition:transform .08s ease, background .16s ease, border-color .16s ease, opacity .16s ease}
+.btn:active{transform:translateY(1px) scale(.995)}
+.bar i{transition:width .45s linear}
+.cl-tap{transition:background .15s ease; border-radius:10px}
+.cl-tap:hover{background:#ffffff08}
+@media (prefers-reduced-motion: reduce){ .bar i{transition:none} }
+
+/* ---------- панель текущего дела ---------- */
+.actionbar{
+  position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(64px + env(safe-area-inset-bottom));
+  width:min(720px, calc(100% - 20px)); z-index:31;
+  display:flex; align-items:center; gap:12px;
+  padding:10px 12px; border-radius:14px;
+  background:linear-gradient(180deg,#16233c,#101a2e);
+  border:1px solid color-mix(in srgb, var(--accent) 45%, #24334f);
+  box-shadow:0 10px 30px #00000080, 0 0 0 1px #00000040 inset;
+  animation:abIn .18s ease-out;
+}
+@keyframes abIn{from{opacity:0; transform:translate(-50%, 8px)} to{opacity:1; transform:translate(-50%,0)}}
+.actionbar .ab-main{flex:1; min-width:0}
+.actionbar .ab-title{font-weight:700; font-size:13px; line-height:1.25; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.actionbar .ab-time{font-variant-numeric:tabular-nums; font-weight:700; color:var(--accent); font-size:13px; min-width:52px; text-align:center}
+.actionbar .btn{flex-shrink:0}
+@media (max-width:820px){ .actionbar{bottom:calc(78px + env(safe-area-inset-bottom)); width:calc(100% - 16px)} }
+
+.wrap.day.with-bar{padding-bottom:200px}
+@media (max-width:820px){ .wrap.day.with-bar{padding-bottom:220px} }
+/* журнал не растягивает страницу */
+.logcard .log{max-height:170px; overflow-y:auto; scrollbar-width:thin}
+
+/* ============================================================
+   ПРЕМИАЛЬНАЯ ТЕМА
+   ============================================================ */
+
+/* ---- иконки ---- */
+.i{width:1em; height:1em; display:inline-block; vertical-align:-0.14em; flex-shrink:0}
+h3 .i{width:15px; height:15px; vertical-align:-2px; margin-right:6px; opacity:.75}
+.m-label .i{width:12px; height:12px; vertical-align:-2px; margin-right:4px; opacity:.8}
+.btn .i{width:17px; height:17px}
+.btn.big .i{width:18px; height:18px}
+.btn.small .i{width:15px; height:15px}
+.ico-inline{display:inline-flex; align-items:center; gap:3px}
+.ico-inline .i{width:12px; height:12px; opacity:.7}
+.iconbtn{padding:8px; line-height:0; border-radius:12px}
+.iconbtn .i{color:var(--muted)}
+.iconbtn:hover .i{color:var(--text)}
+.spd .i{width:14px; height:14px; vertical-align:-3px}
+.tab .i{width:15px; height:15px}
+.item-icon .i{width:21px; height:21px}
+.pal-ico .i{width:16px; height:16px}
+.rfix-ico .i{width:15px; height:15px}
+.mm-token .i{width:13px; height:13px}
+.mm-legend{display:inline-flex; align-items:center; gap:5px; margin-left:8px; color:var(--muted); font-size:11px}
+.mm-legend .i{width:13px; height:13px}
+.av-role{position:absolute; right:-3px; bottom:-3px; width:16px; height:16px; border-radius:50%;
+  background:#0d1524; border:1px solid var(--line-strong); display:grid; place-items:center}
+.av-role .i{width:10px; height:10px; color:var(--accent)}
+
+/* ---- фон ---- */
+html{background:#070a12}
+body{
+  background:#070a12;
+  font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,"Helvetica Neue",Arial,sans-serif;
+  letter-spacing:-0.005em;
+}
+body::before{
+  content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(1100px 620px at 8% -12%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 62%),
+    radial-gradient(900px 520px at 96% -4%, #2b1d5f66, transparent 64%),
+    radial-gradient(1000px 700px at 50% 118%, #0a1a3355, transparent 70%),
+    linear-gradient(180deg, #080c15, #060911 60%, #05080f);
+}
+h1{font-size:30px; letter-spacing:-0.03em; font-weight:800}
+h2{font-size:22px; letter-spacing:-0.02em; font-weight:750}
+h3{font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:#93a3c0; font-weight:700}
+.m-val,.rn b{font-variant-numeric:tabular-nums; letter-spacing:-0.02em}
+
+/* ---- поверхности ---- */
+.card{
+  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012));
+  border:1px solid var(--line);
+  border-radius:var(--r);
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 20px 44px -32px #000, 0 2px 6px -3px #0009;
+}
+.card.pad{padding:16px}
+@media (min-width:821px){ .card.pad{padding:18px} }
+.card[data-act]{
+  background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
+  border:1px solid var(--line); border-radius:var(--r);
+}
+.card[data-act]:hover{border-color:var(--line-strong); transform:translateY(-2px); box-shadow:0 26px 50px -34px #000}
+.card[data-act].sel{border-color:color-mix(in srgb, var(--accent) 70%, transparent);
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), 0 22px 48px -28px color-mix(in srgb, var(--accent) 70%, transparent)}
+
+/* ---- кнопки ---- */
+.btn{
+  background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.035));
+  border:1px solid var(--line-strong);
+  border-radius:13px; font-weight:650; letter-spacing:-0.01em;
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset, 0 8px 20px -16px #000;
+  min-height:38px;
+}
+.btn:hover{filter:brightness(1.1); border-color:rgba(255,255,255,.22)}
+.btn.primary{
+  background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 92%, #fff), var(--accent2));
+  border-color:transparent; color:#fff;
+  box-shadow:0 1px 0 rgba(255,255,255,.35) inset, 0 12px 26px -12px color-mix(in srgb, var(--accent) 90%, transparent);
+}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{background:rgba(255,255,255,.02); border-color:var(--line)}
+.btn.big{min-height:48px; border-radius:15px; font-size:15.5px; font-weight:700; letter-spacing:-0.015em}
+.btn.small{min-height:32px; border-radius:10px; font-size:12.5px}
+.btn:focus-visible,.tab:focus-visible,.spd:focus-visible{outline:2px solid color-mix(in srgb, var(--accent) 80%, transparent); outline-offset:2px}
+
+/* ---- HUD ---- */
+.hud{
+  background:linear-gradient(180deg, rgba(10,15,26,.86), rgba(10,15,26,.62));
+  backdrop-filter:blur(22px) saturate(140%);
+  border-bottom:1px solid var(--line);
+}
+.m-label{font-size:9.5px; letter-spacing:.13em; font-weight:700; display:inline-flex; align-items:center}
+.m-val{font-size:15px; font-weight:750}
+
+/* ---- вкладки ---- */
+.tabs{display:flex; gap:6px; padding:5px; border-radius:16px;
+  background:rgba(255,255,255,.035); border:1px solid var(--line); margin:2px 0 14px}
+.tab{
+  flex:1; display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  padding:10px 8px; border-radius:12px; border:1px solid transparent; background:transparent;
+  color:var(--muted); font-weight:650; font-size:13.5px; letter-spacing:-0.01em; min-height:42px;
+  transition:color .15s, background .15s, box-shadow .15s;
+}
+.tab:hover{color:var(--text); background:rgba(255,255,255,.04)}
+.tab.on{color:#fff; background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 34%, transparent), color-mix(in srgb, var(--accent) 12%, transparent));
+  border-color:color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow:0 1px 0 rgba(255,255,255,.12) inset, 0 10px 24px -18px var(--accent)}
+.tab-badge{display:inline-grid; place-items:center; min-width:17px; height:17px; padding:0 5px; margin-left:5px;
+  border-radius:99px; background:var(--warn); color:#1a1206; font-size:10.5px; font-weight:800}
+
+/* ---- магазин ---- */
+.item{padding:12px; border-radius:14px; border:1px solid transparent; transition:background .15s, border-color .15s}
+.item:hover{background:rgba(255,255,255,.035); border-color:var(--line)}
+.item-icon{
+  width:44px; height:44px; border-radius:13px; display:grid; place-items:center; flex-shrink:0;
+  background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+  border:1px solid var(--line-strong); color:color-mix(in srgb, var(--accent) 65%, #fff);
+}
+.item-name{font-weight:700; letter-spacing:-0.01em}
+.item.locked .item-icon{opacity:.45}
+.item.locked .item-name{color:var(--muted)}
+
+/* ---- аватары ---- */
+.avatar{position:relative; width:40px; height:40px; border-radius:50%; display:grid; place-items:center;
+  font-weight:800; font-size:15px; background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04));
+  border:1px solid var(--line-strong); color:#dbe6ff}
+.avatar.alt{background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 30%, transparent), rgba(255,255,255,.03))}
+
+/* ---- ячейки склада ---- */
+.cell{background:rgba(255,255,255,.022); border:1px solid var(--line); color:#64749a}
+.cell.full{background:linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.03));
+  border-color:var(--line-strong); color:#eaf1ff;
+  box-shadow:inset 0 -2px 0 rgba(255,255,255,.05), 0 4px 12px -8px #000}
+.cell.located{border-color:var(--warn); background:color-mix(in srgb, var(--warn) 22%, #10161f); color:#ffe6b0}
+
+/* ---- нижние панели ---- */
+.sticky-cta{
+  background:linear-gradient(180deg, rgba(6,9,16,.72), rgba(6,9,16,.94));
+  backdrop-filter:blur(22px) saturate(140%);
+  border-top:1px solid var(--line);
+}
+.actionbar{
+  background:linear-gradient(180deg, rgba(24,34,54,.96), rgba(13,20,34,.98));
+  border:1px solid color-mix(in srgb, var(--accent) 42%, var(--line-strong));
+  border-radius:16px;
+  box-shadow:0 18px 44px -22px #000, 0 1px 0 rgba(255,255,255,.1) inset;
+}
+.actionbar .ab-title{display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:700}
+.actionbar .ab-title .i{color:var(--warn); width:15px; height:15px}
+.actionbar .btn.primary{min-height:42px; padding-inline:18px}
+
+/* ---- прочее ---- */
+.bar{height:6px; border-radius:99px; background:rgba(255,255,255,.07); overflow:hidden}
+.bar.thin{height:4px}
+.bar i{display:block; height:100%; border-radius:99px; background:linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #fff))}
+.bar i.warn{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+.bar i.danger{background:linear-gradient(90deg,#ef4444,#fb7185)}
+.chip{background:rgba(255,255,255,.05); border:1px solid var(--line); border-radius:99px; padding:4px 9px; font-size:11.5px}
+.kpi-row{padding:9px 0; border-bottom:1px solid rgba(255,255,255,.05)}
+.kpi-row:last-child{border-bottom:0}
+.toast{
+  background:linear-gradient(180deg, rgba(26,36,56,.98), rgba(16,23,38,.98));
+  border:1px solid var(--line-strong); border-radius:13px;
+  box-shadow:0 16px 34px -20px #000;
+}
+.staff-item, .pk{transition:border-color .15s, background .15s}
+@media (hover:hover){ .pk:hover{border-color:color-mix(in srgb, var(--accent) 50%, transparent)} }
+
+/* ---- лента: точка статуса вместо эмодзи ---- */
+.logline{position:relative; padding-left:14px; line-height:1.5}
+.logline::before{
+  content:''; position:absolute; left:0; top:.55em; width:5px; height:5px; border-radius:50%;
+  background:#41557a;
+}
+.logline.good::before{background:var(--good)}
+.logline.bad::before{background:var(--bad)}
+.logline.warn::before{background:var(--warn)}
+.logline.truck::before{background:var(--accent)}
+.logline.lvl::before{background:#a78bfa}
+.logline.event::before{background:#f472b6}
+.logline .lt{opacity:.55}
+
+/* ---- витрина франшиз ---- */
+.brand-tile{
+  width:46px; height:46px; border-radius:15px; display:grid; place-items:center;
+  font-size:19px; font-weight:800; color:#fff; letter-spacing:-0.02em;
+  background:linear-gradient(150deg, var(--b), var(--b2, var(--b)));
+  box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 14px 28px -16px var(--b), 0 2px 8px -4px #000a;
+  margin-bottom:10px;
+}
+.card[data-act].sel .brand-tile{box-shadow:0 1px 0 rgba(255,255,255,.5) inset, 0 16px 34px -14px var(--b)}
+.ico-lead{display:flex; align-items:center; gap:8px}
+.ico-lead > .i{width:17px; height:17px; opacity:.8}
+.card[data-act] .card-title .i{color:var(--muted)}
+
+/* ---- прогноз потока ---- */
+.forecast{gap:6px}
+.fbar{position:relative; border-radius:8px; overflow:hidden; background:rgba(255,255,255,.03)}
+.fbar i{background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent2));
+  border-radius:7px; box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}
+.fbar span{color:var(--muted); font-size:10.5px; font-variant-numeric:tabular-nums}
+
+/* ---- иконка-лид в заголовках строк ---- */
+b.ico-lead{display:inline-flex; align-items:center; gap:7px}
+b.ico-lead > .i{width:18px; height:18px; opacity:.85; color:var(--warn)}
+
+/* ---- тост: снизу по центру, над панелью действий ---- */
+.toast{
+  top:auto; right:auto; left:50%; transform:translateX(-50%);
+  bottom:calc(136px + env(safe-area-inset-bottom));
+  pointer-events:none; max-width:calc(100vw - 32px);
+  text-align:center; border-radius:99px; padding:10px 18px; font-size:13px; font-weight:600;
+  animation:popUp .2s ease;
+}
+@keyframes popUp{from{opacity:0; transform:translate(-50%,10px)}to{opacity:1; transform:translate(-50%,0)}}
+
+/* ---- кандидаты и сотрудники ---- */
+.pk .btn, .staff-item .btn{color:#dfe9ff; border-color:rgba(255,255,255,.16)}
+.pk .btn:not(.dis):hover{border-color:color-mix(in srgb, var(--accent) 60%, transparent); color:#fff;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 26%, transparent), color-mix(in srgb, var(--accent) 8%, transparent))}
+.pk-meta, .pk .muted.small{font-size:11.5px}
+
+/* ---- итоги дня ---- */
+.total-row{
+  margin-top:6px; padding:14px 0 2px; border-top:1px solid var(--line-strong);
+  font-size:16px; font-weight:750; letter-spacing:-0.02em;
+}
+.total-row b{font-size:19px; font-variant-numeric:tabular-nums}
+
+/* ---- пауза заметнее ---- */
+.spd .i[data-i="pause"]{width:15px; height:15px}
+
+/* ---- отчёт ---- */
+.report-grid{gap:10px; margin:14px 0 16px}
+.rn{
+  background:linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.012));
+  border:1px solid var(--line); border-radius:15px; padding:14px 10px;
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset;
+}
+.rn b{font-size:23px; font-weight:800; letter-spacing:-0.03em; line-height:1.15}
+.rn span{font-size:11px; color:var(--muted); letter-spacing:.02em}
+.pnl-row{padding:9px 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:13.5px}
+.pnl-row b{font-variant-numeric:tabular-nums; font-weight:700}
+.pnl-row.total{
+  border-top:1px solid var(--line-strong); border-bottom:0; margin-top:8px; padding-top:13px;
+  font-size:15px; font-weight:750;
+}
+.pnl-row.total b{font-size:19px; letter-spacing:-0.02em}
+@media (max-width:600px){
+  .report-grid{grid-template-columns:repeat(2,1fr)}
+  .rn b{font-size:21px}
+}
+
+/* ---- вкладки на узком экране: только иконки ---- */
+.tab-lbl{white-space:nowrap}
+@media (max-width:420px){
+  .tab{flex-direction:column; gap:3px; padding:8px 4px; font-size:10.5px; min-height:52px}
+  .tab .i{width:18px; height:18px}
+  .tab-lbl{display:none}
+  .tab-badge{position:absolute; top:3px; right:6px; margin:0; height:15px; min-width:15px; font-size:9.5px}
+  .tab{position:relative}
+}
+
+/* ---- модалка события / меню ---- */
+.modal{
+  background:linear-gradient(180deg, #16203a, #0e1626);
+  border:1px solid var(--line-strong); border-radius:22px; padding:22px;
+  box-shadow:0 40px 90px -40px #000, 0 1px 0 rgba(255,255,255,.08) inset;
+}
+.modal-bg{background:rgba(4,7,14,.72); backdrop-filter:blur(6px)}
+.modal-head{display:flex; align-items:flex-start; gap:13px; margin-bottom:10px}
+.modal-ico{
+  width:42px; height:42px; border-radius:13px; display:grid; place-items:center; flex-shrink:0;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--warn) 30%, transparent), color-mix(in srgb, var(--warn) 8%, transparent));
+  border:1px solid color-mix(in srgb, var(--warn) 40%, transparent); color:#ffd8a1;
+}
+.modal-ico .i{width:21px; height:21px}
+.modal h2{margin:2px 0 0}
+.modal .kicker{color:var(--warn)}
+.opts{gap:9px; margin:16px 0 12px}
+.opt{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:14px 16px; min-height:52px; text-align:left; font-weight:650; font-size:14.5px;
+  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border:1px solid var(--line-strong); border-radius:14px;
+}
+.opt .opt-go{display:grid; place-items:center; color:var(--muted); transition:transform .15s, color .15s}
+.opt .opt-go .i{width:16px; height:16px}
+.opt:hover{border-color:color-mix(in srgb, var(--accent) 60%, transparent); background:linear-gradient(180deg, color-mix(in srgb, var(--accent) 20%, transparent), color-mix(in srgb, var(--accent) 6%, transparent))}
+.opt:hover .opt-go{color:#fff; transform:translateX(2px)}
+
+/* ---- недоступные действия ---- */
+.btn.dis, .btn:disabled{
+  opacity:.45; filter:grayscale(.35); box-shadow:none; cursor:not-allowed;
+}
+.btn.primary:disabled{opacity:.5; filter:grayscale(.2) brightness(.85)}
+
+/* ---- стартовый экран ---- */
+.logo-mark{
+  width:56px; height:56px; border-radius:17px; display:grid; place-items:center;
+  background:linear-gradient(150deg, color-mix(in srgb, var(--accent) 92%, #fff), var(--accent2));
+  color:#fff; font-size:15px; font-weight:800; letter-spacing:-0.02em;
+  box-shadow:0 1px 0 rgba(255,255,255,.4) inset, 0 18px 36px -18px var(--accent), 0 2px 10px -4px #000a;
+}
+.logo-mark .i{width:28px; height:28px}
+.start{padding-top:14px}
+.start h1{font-size:32px; margin:0 0 2px}
+.lead{max-width:620px; color:#b9c6de; font-size:15.5px; line-height:1.62; margin:16px 0 0}
+.start-feats{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
+.feat{
+  display:inline-flex; align-items:center; gap:7px; padding:7px 12px; border-radius:99px;
+  background:rgba(255,255,255,.04); border:1px solid var(--line); color:#a9b8d4; font-size:12.5px; font-weight:600;
+}
+.feat .i{width:14px; height:14px; color:color-mix(in srgb, var(--accent) 70%, #fff)}
+h2.sec{margin:26px 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:#8394b3}
+
+/* ---- карта не растягивается по высоте соседей ---- */
+.card.minimap{align-self:start}
+
+/* ---- установка приложения (PWA) ---- */
+.menu-state{display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line)}
+.menu-state .chip{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted)}
+.menu-state .chip .i{width:12px; height:12px; opacity:.8}
+.menu-state .chip.warn{color:var(--warn); border-color:color-mix(in srgb, var(--warn) 40%, transparent)}
+.steps{margin:14px 0 4px; padding-left:20px; color:#c3cfe4; font-size:13.5px; line-height:1.55}
+.steps li{margin-bottom:7px}
+.steps li::marker{color:var(--accent); font-weight:800}
+
+</style>
+</head>
+<body>
+<div id="app"><div class="boot">Загрузка ПВЗ-Сити…<br><span class="muted small">Если этот текст не исчез — обновите страницу.</span></div></div>
+<noscript><div style="padding:24px;color:#e9eefc;font:16px sans-serif">Для игры нужен включённый JavaScript.</div></noscript>
+<script>
+(function(){
+"use strict";
+window.addEventListener("error", function(e){
+  var app = document.getElementById("app");
+  if (app && !window.__pvzBooted){
+    app.innerHTML = '<div style="padding:24px;color:#fca5a5;font:15px/1.5 sans-serif"><b>Ошибка запуска игры.</b><br>' + (e.message || "") + '</div>';
+  }
+});
+const E = (function(){
+/* ============================================================
+   ПВЗ-Сити — движок симуляции
+   Чистая логика. Никакого DOM. Детерминированный (seeded RNG).
+   ============================================================ */
+
+const CFG = {
+  DAY_MIN: 720,             // 09:00 -> 21:00
+  START_HOUR: 9,
+  MIN_PER_SEC: 5,           // 1 реальная секунда = 5 игровых минут при 1x
+  START_MONEY: 60000,
+  PAY_BASE: 100,            // базовая выплата за заказ
+  TAX_RATE: 0.06,           // УСН 6% с выручки
+  LOAN_RATE: 0.007,         // 0.7% в день
+  LOAN_LIMIT_MULT: 3,       // до 3x дневной выручки
+  RECV_MAX: 10,             // зона приёмки
+  PATIENCE_BASE: 120,       // игровых минут терпения
+  UTIL_PER_DAY: 400,
+  SEARCH_BASE: 14,          // игровых минут на поиск заказа
+  NEG_DAYS_LIMIT: 3,
+  DIRTY_TIRED: 70,
+  PREPAY_DAYS: 10,         // аванс за первые дни работы при найме
+};
+
+const BRANDS = [
+  { id:'plus',  name:'Плюс Маркет', color:'#3b82f6', color2:'#1d4ed8', tag:'Синий. Простой. Надёжный.',
+    traffic:1.10, payout:1.00, req:['counter','banner','light'] },
+  { id:'skor',  name:'Скороход',    color:'#8b5cf6', color2:'#5b21b6', tag:'Фиолетовый. Быстрый. Дерзкий.',
+    traffic:1.22, payout:0.96, req:['counter','banner','light','coffee'] },
+  { id:'gorod', name:'Городок',     color:'#22c55e', color2:'#15803d', tag:'Зелёный. Тёплый. Местный.',
+    traffic:1.04, payout:1.10, req:['counter','banner','light','sofa'] },
+];
+
+const PREMISES = [
+  { id:'garage', name:'Гараж у дома',             deposit:0,     rent:900,  slots:8,  gw:7,  gh:6, traffic:0.78, payout:0.90, lvl:1,
+    desc:'Дёшево и сердито. Поток слабый, зато аренда не душит.' },
+  { id:'spal',   name:'Первый этаж, спальник',    deposit:12000, rent:2200, slots:12, gw:9,  gh:7, traffic:1.00, payout:1.00, lvl:1,
+    desc:'Жилой дом, постоянные клиенты. Золотая середина.' },
+  { id:'mall',   name:'Помещение в ТЦ',           deposit:36000, rent:4200, slots:18, gw:11, gh:8, traffic:1.45, payout:1.12, lvl:4,
+    desc:'Большой поток и высокие ставки. Ошибка в прогнозе = кассовый разрыв.' },
+];
+
+const ITEMS = {
+  counter:  {name:'Стойка выдачи',      icon:'🛒', cost:12000, slots:1, once:true, lvl:1, req:true,  size:{w:2,h:1}, physical:true, short:'Стойка', desc:'Рабочее место. Ставьте ближе к центру зала'},
+  banner:   {name:'Баннер бренда',      icon:'🪧', cost:6000,  slots:1, once:true, lvl:1, req:true,  size:{w:1,h:1}, physical:true, short:'Баннер', desc:'Требование брендбука'},
+  light:    {name:'Витринное освещение',icon:'💡', cost:5000,  slots:1, once:true, lvl:1, req:true,  desc:'Требование брендбука'},
+  scanner:  {name:'Сканер ШК',          icon:'📡', cost:7000,  slots:1, once:true, lvl:2, search:-4, desc:'−4 мин к поиску заказа'},
+  printer:  {name:'Принтер этикеток',   icon:'🖨️', cost:6500,  slots:1, once:true, lvl:2, search:-2, acc:2, desc:'−2 мин к поиску, меньше ошибок'},
+  terminal: {name:'Терминал оплаты',    icon:'💳', cost:15000, slots:1, once:true, lvl:3, pay:1.08,  desc:'+8% к выплате за заказ'},
+  coffee:   {name:'Кофемашина',         icon:'☕', cost:11000, slots:1, once:true, lvl:2, traffic:1.08, size:{w:1,h:1}, physical:true, short:'Кофе', desc:'+8% к потоку клиентов'},
+  sofa:     {name:'Диван для клиентов', icon:'🛋️', cost:9000,  slots:1, once:true, lvl:2, patience:1.20, size:{w:2,h:1}, physical:true, short:'Диван', desc:'+20% терпения клиентов'},
+  fitting:  {name:'Примерочная',        icon:'🚪', cost:14000, slots:1, once:true, lvl:2, size:{w:2,h:2}, physical:true, short:'Примерка', desc:'Без неё примерка одежды портит NPS'},
+  ac:       {name:'Кондиционер',        icon:'❄️', cost:14000, slots:1, once:true, lvl:3, patience:1.25, desc:'+25% терпения, меньше выгорания'},
+  music:    {name:'Музыкальный фон',    icon:'🎵', cost:4000,  slots:1, once:true, lvl:1, patience:1.10, desc:'+10% терпения клиентов'},
+  cam:      {name:'Камера',             icon:'📹', cost:8000,  slots:1, once:true, lvl:3, fines:0.5,   desc:'Штрафы за ошибки вдвое меньше'},
+  shelfStd: {name:'Стеллаж на 16',      icon:'🗄️', cost:9000,  slots:2, repeat:true, lvl:1, cap:16, zone:'std',  size:{w:2,h:1}, physical:true, short:'Стеллаж', desc:'16 ячеек хранения'},
+  shelfFrag:{name:'Полка «Хрупкое»',    icon:'🥚', cost:6000,  slots:1, repeat:true, lvl:2, cap:6,  zone:'frag', size:{w:1,h:1}, physical:true, short:'Хрупкое', desc:'6 ячеек, обязательна для хрупких'},
+  shelfKgt: {name:'Зона КГТ',           icon:'📦', cost:9000,  slots:2, repeat:true, lvl:3, cap:4,  zone:'kgt',  size:{w:2,h:2}, physical:true, short:'КГТ', desc:'4 ячейки, обязательна для крупногабарита'},
+};
+
+const ROLES = {
+  seller:  {name:'Продавец',    icon:'🧑‍💼', salary:1700, onboard:2500, lvl:1, max:3, desc:'Сам находит и выдаёт заказы из очереди'},
+  loader:  {name:'Грузчик',     icon:'🧑‍🏭', salary:1300, onboard:2500, lvl:1, max:2, desc:'Принимает поставки и раскладывает по ячейкам'},
+  manager: {name:'Управляющий', icon:'👔', salary:2600, onboard:3500, lvl:4, max:1, desc:'+25% скорость команде, гасит скандалы, +NPS'},
+};
+
+const CONTRACTS = [
+  { id:'bronze', name:'Бронза',  sla:90, missed:0.08, nps:3.8, brand:0.70, pay:1.00, color:'#a16207' },
+  { id:'silver', name:'Серебро', sla:60, missed:0.05, nps:4.1, brand:0.85, pay:1.10, color:'#94a3b8' },
+  { id:'gold',   name:'Золото',  sla:40, missed:0.03, nps:4.4, brand:1.00, pay:1.25, color:'#f59e0b' },
+  { id:'plat',   name:'Платина', sla:25, missed:0.015,nps:4.6, brand:1.00, pay:1.45, color:'#67e8f9' },
+];
+
+const NAMES = ['Игорь','Ольга','Дмитрий','Анна','Сергей','Мария','Алексей','Елена','Павел','Ирина','Ринат','Юлия','Максим','Светлана'];
+const TRAITS = [
+  { id:'worker',  name:'Трудяга',      speed:1.15, mood:-0.05, desc:'Быстрее, но требует больше' },
+  { id:'pedant',  name:'Педант',       speed:0.9,  acc:0.06,    desc:'Аккуратен, но медлит' },
+  { id:'soul',    name:'Душа компании',service:0.12, speed:0.97, desc:'Клиенты его любят' },
+  { id:'lazy',    name:'Лентяй',       speed:0.82, salary:-250, desc:'Дёшев, но медленный' },
+  { id:'grumpy',  name:'Скандалист',   service:-0.06, speed:1.05, desc:'Энергичен, но портит нервы' },
+];
+const ZONE_LABEL = { std:'Стандарт', frag:'Хрупкое', kgt:'КГТ' };
+
+/* ---------------- RNG ---------------- */
+function rnd(S){ S.rng = (Math.imul(S.rng, 1664525) + 1013904223) >>> 0; return S.rng / 4294967296; }
+function rr(S,a,b){ return a + rnd(S)*(b-a); }
+function ri(S,a,b){ return Math.floor(rr(S,a,b+1)); }
+function pick(S,arr){ return arr[Math.floor(rnd(S)*arr.length)]; }
+function chance(S,p){ return rnd(S) < p; }
+
+/* ---------------- accessors ---------------- */
+const brandOf    = S => BRANDS.find(b => b.id === S.brandId);
+const premOf     = S => PREMISES.find(p => p.id === S.premiseId);
+const contractOf = S => CONTRACTS[S.contractIdx];
+
+function compliance(S){
+  const req = brandOf(S).req;
+  const have = req.filter(id => S.owned[id]).length;
+  return have / req.length;
+}
+
+function slotsUsed(S){
+  let n = 0;
+  for (const id in S.owned) if (S.owned[id] > 0 && ITEMS[id].slots) n += ITEMS[id].slots * S.owned[id];
+  return n;
+}
+
+function capacity(S){
+  let n = 0, free = 0;
+  for (const sh of S.shelves){ n += sh.cap; free += sh.cells.filter(c => !c).length; }
+  return { total:n, free, used:n - free };
+}
+
+function zoneOf(pkg){
+  if (pkg.size === 'XL') return 'kgt';
+  if (pkg.fragile) return 'frag';
+  return 'std';
+}
+
+function storedPackages(S){
+  const out = [];
+  for (const sh of S.shelves) sh.cells.forEach((c,i)=>{ if (c) out.push({ ...c, shelfId:sh.id, cellIdx:i }); });
+  return out;
+}
+
+function findCellByCode(S, code){
+  for (const sh of S.shelves){
+    for (let i=0;i<sh.cells.length;i++) if (sh.cells[i] && sh.cells[i].code === code) return { shelfId:sh.id, cellIdx:i, pkg:sh.cells[i] };
+  }
+  return null;
+}
+
+/* ---------------- создание игры ---------------- */
+function createGame({ brandId, premiseId, seed }){
+  const prem = PREMISES.find(p => p.id === premiseId) || PREMISES[1];
+  const s0 = (seed == null ? (Date.now() % 1000000000) : seed) >>> 0;
+  const S = {
+    seed: s0, rng: s0 || 1,
+    brandId: brandId || 'plus',
+    premiseId: prem.id,
+    money: CFG.START_MONEY - prem.deposit,
+    day: 1, minutes: 0, phase: 'plan', speed: 1,
+    nps: 4.2, xp: 0, lvl: 1,
+    fatigue: 0, tiredUntil: -1, player: { busy: null }, hands: null,
+    owned: {},
+    grid: { w: prem.gw || 8, h: prem.gh || 6 },
+    fixtures: [],
+    unplaced: [],
+    fittingBusy: [],
+    shelves: [],
+    receiving: [],
+    clients: [],
+    staff: [],
+    candidates: [],
+    trucks: [],
+    event: null,
+    contractIdx: 0,
+    debt: 0,
+    negDays: 0,
+    // статистика дня
+    dayStats: null,
+    history: [],
+    forecast: [],
+    kpiWeek: { issued:0, slaSum:0, missed:0, arrivals:0, days:0 },
+    log: [],
+    aid: 1,
+    policies: { placement:'sla', overflow:'block', autoReturn:true },
+    report: null,
+    over: false, overReason: null,
+    tutorialStep: 0,
+  };
+  S.dayStats = freshDayStats();
+  buildCandidates(S);
+  S.forecast = forecastFor(S);
+  pushLog(S, `Открытие ПВЗ «${brandOf(S).name}» — ${prem.name}. В кассе ${fmt(S.money)} ₽.`, 'info');
+  return S;
+}
+
+function freshDayStats(){
+  return {
+    revenue:0, tips:0, fines:0, issued:0, missed:0, consults:0,
+    slaSum:0, arrivals:0, accepted:0, payroll:0, rent:0, util:0, tax:0, loan:0, net:0,
+    peakQueue:0, mistakes:0, tryon:0, events:0,
+  };
+}
+
+function fmt(n){ return Math.round(n).toLocaleString('ru-RU'); }
+
+function pushLog(S, text, type='info'){
+  S.log.unshift({ text, type, day:S.day, t:S.minutes });
+  if (S.log.length > 80) S.log.pop();
+}
+
+/* ---------------- магазин / люди ---------------- */
+function itemLocked(S, id){
+  const it = ITEMS[id];
+  if (!it) return true;
+  if (it.lvl > S.lvl) return true;
+  if (it.once && S.owned[id]) return true;
+  return false;
+}
+
+function canBuy(S, id){
+  const it = ITEMS[id];
+  if (!it || itemLocked(S, id)) return false;
+  if (S.money < it.cost) return false;
+  if (it.physical && S.unplaced.length > 6) return false;   // сначала расставьте купленное
+  return true;
+}
+
+function buy(S, id){
+  if (S.phase !== 'plan') return { ok:false, msg:'Закупки — только в фазе планирования' };
+  if (!canBuy(S, id)){
+    const it = ITEMS[id];
+    if (S.money < it.cost) return { ok:false, msg:'Не хватает денег' };
+    if (it.physical && S.unplaced.length > 6) return { ok:false, msg:'Сначала расставьте купленное на плане' };
+    return { ok:false, msg:'Недоступно' };
+  }
+  const it = ITEMS[id];
+  S.money -= it.cost;
+  S.owned[id] = (S.owned[id] || 0) + 1;
+  if (it.physical) S.unplaced.push(id);
+  pushLog(S, `Куплено: ${it.name} (−${fmt(it.cost)} ₽)${it.physical ? ' — расставьте на плане' : ''}`, 'buy');
+  recalcForecast(S);
+  return { ok:true };
+}
+
+function hireCost(S, role){
+  const r = ROLES[role];
+  return (r.onboard || 0) + r.salary * CFG.PREPAY_DAYS;
+}
+function hireBreakdown(S, role){
+  const r = ROLES[role];
+  return { onboard: r.onboard || 0, advance: r.salary * CFG.PREPAY_DAYS, total: hireCost(S, role), days: CFG.PREPAY_DAYS };
+}
+
+function canHire(S, role){
+  if (S.phase !== 'plan') return { ok:false, msg:'Найм — только в фазе планирования' };
+  const r = ROLES[role];
+  const have = S.staff.filter(s => s.role === role).length;
+  if (have >= r.max) return { ok:false, msg:`Максимум ${r.max} на этой роли` };
+  if (r.lvl > S.lvl) return { ok:false, msg:`Откроется на уровне ${r.lvl}` };
+  const cost = hireCost(S, role);
+  if (S.money < cost) return { ok:false, msg:`Нужно ${fmt(cost)} ₽: оформление ${fmt(r.onboard)} + аванс ${fmt(r.salary * CFG.PREPAY_DAYS)} за ${CFG.PREPAY_DAYS} дн.` };
+  return { ok:true };
+}
+
+function hire(S, role){
+  const c = canHire(S, role);
+  if (!c.ok) return c;
+  if (!S.candidates.length) buildCandidates(S);
+  const cand = S.candidates.find(c2 => c2.role === role) || makeCandidate(S, role);
+  const cost = hireCost(S, role);
+  S.money -= cost;
+  S.candidates = S.candidates.filter(c2 => c2.id !== cand.id);
+  S.staff.push({ ...cand, id:'e'+(S.aid++), mood:70, fatigue:0, task:null, onShift:true, daysWorked:0, prepay: CFG.PREPAY_DAYS });
+  pushLog(S, `Нанят ${ROLES[role].name}: ${cand.name} (${cand.traitName}). Оформление и аванс: −${fmt(cost)} ₽`, 'hire');
+  buildCandidates(S);
+  return { ok:true };
+}
+
+function fire(S, id){
+  if (S.phase !== 'plan') return { ok:false, msg:'Увольнять — только в фазе планирования' };
+  const st = S.staff.find(s => s.id === id);
+  if (!st) return { ok:false, msg:'Нет такого сотрудника' };
+  S.staff = S.staff.filter(s => s.id !== id);
+  S.nps = clamp(S.nps - 0.02, 0, 5);
+  const lost = (st.prepay || 0) * st.salary;
+  pushLog(S, `Уволен ${st.name}.${lost > 0 ? ` Неотработанный аванс ${fmt(lost)} ₽ не возвращается.` : ''} Команда нервничает.`, 'bad');
+  return { ok:true };
+}
+
+function makeCandidate(S, role){
+  const tr = pick(S, TRAITS);
+  const base = { seller:{sp:5,ac:5,sv:6}, loader:{sp:6,ac:5,sv:3}, manager:{sp:6,ac:6,sv:7} }[role];
+  const salary = ROLES[role].salary + (tr.salary || 0) + ri(S,-150,300);
+  return {
+    id:'c'+(S.aid++), role,
+    name: pick(S, NAMES),
+    sp: clamp(base.sp + ri(S,-2,2), 1, 10),
+    ac: clamp(base.ac + ri(S,-2,2), 1, 10),
+    sv: clamp(base.sv + ri(S,-2,2), 1, 10),
+    trait: tr.id, traitName: tr.name, traitDesc: tr.desc,
+    salary: Math.max(700, Math.round(salary / 50) * 50),
+    mood: 70,
+  };
+}
+
+function buildCandidates(S){
+  const need = [];
+  for (const role in ROLES){
+    const have = S.staff.filter(s => s.role === role).length;
+    const want = role === 'manager' ? 1 : 2;
+    for (let i = 0; i < Math.max(0, want - have); i++) need.push(role);
+  }
+  S.candidates = need.map(r => makeCandidate(S, r));
+  // перемешаем, чтобы не было сгруппировано
+  S.candidates.sort((a,b) => (a.name > b.name ? 1 : -1));
+}
+
+/* ---------------- спрос и прогноз ---------------- */
+const HOUR_W = [0.6, 0.8, 1.1, 1.5, 1.3, 0.9, 0.8, 1.0, 1.45, 1.6, 1.2, 0.7]; // 09..20
+
+function npsFactor(S){ return 0.65 + clamp(S.nps,0,5) / 5 * 0.70; }
+
+function dayDemand(S){
+  const p = premOf(S), b = brandOf(S);
+  const dow = (S.day - 1) % 7;
+  const dowF = [1.0, 0.95, 0.95, 1.0, 1.1, 1.25, 0.85][dow];  // пн..вс
+  const growth = 1 + Math.min(0.45, (S.day - 1) * 0.025);
+  let d = 26 * p.traffic * b.traffic * npsFactor(S) * dowF * growth;
+  if (S.owned.coffee) d *= ITEMS.coffee.traffic;
+  return d;
+}
+
+function recalcForecast(S){ S.forecast = forecastFor(S); }
+
+function forecastFor(S){
+  const base = dayDemand(S);
+  const sumW = HOUR_W.reduce((a,b)=>a+b,0);
+  return HOUR_W.map((w,h) => {
+    const exp = base * w / sumW;
+    return { hour: CFG.START_HOUR + h, exp };
+  });
+}
+
+/* ---------------- день ---------------- */
+function expirePackages(S){
+  let n = 0, fee = 0;
+  for (const sh of S.shelves){
+    for (let i=0;i<sh.cells.length;i++){
+      const p = sh.cells[i];
+      if (p && p.slaDay <= S.day){
+        sh.cells[i] = null; n++;
+        fee += 30;
+      }
+    }
+  }
+  // просроченное в приёмке тоже уходит
+  const before = S.receiving.length;
+  S.receiving = S.receiving.filter(p => p.slaDay > S.day);
+  n += before - S.receiving.length;
+  if (n){
+    S.money += fee;
+    pushLog(S, `${n} посылок с истёкшим сроком хранения отправлены назад. +${fmt(fee)} ₽ за обработку.`, 'warn');
+  }
+  return n;
+}
+
+function layoutProblems(S){
+  const out = [];
+  if (!S.fixtures.some(f => f.itemId === 'counter')) out.push('Не поставлена стойка выдачи');
+  if (!S.shelves.length) out.push('Нет ни одного стеллажа');
+  if (S.unplaced.length) out.push(`Не расставлено предметов: ${S.unplaced.length}`);
+  return out;
+}
+
+function startDay(S){
+  if (S.phase !== 'plan') return;
+  const probs = layoutProblems(S);
+  if (probs.length) return { ok:false, msg:probs[0] };
+  expirePackages(S);
+  S.phase = 'day';
+  S.minutes = 0;
+  S.speed = 1;
+  S.tiredUntil = 0;
+  if (S.player){ S.player.busy = null; S.player.stand = null; }
+  S.hands = null;
+  S.fittingBusy = [];
+  S.dayStats = freshDayStats();
+  S.recalcDone = false;
+  S.clients = [];
+  S.receiving = S.receiving; // переносим
+  S.trucks = [];
+  S.event = null;
+
+  const total = Math.max(8, Math.round(dayDemand(S) * 0.95));
+  const parts = [0.6, 0.4];
+  const times = [25, 390];
+  parts.forEach((pct, i) => {
+    S.trucks.push({
+      arriveAt: times[i],
+      boxes: Math.max(2, Math.round(total * pct)),
+      left: Math.max(2, Math.round(total * pct)),
+      waitLeft: 300,
+      arrived: false,
+    });
+  });
+
+  S.staff.forEach(st => { st.task = null; st.onShift = true; st.fatigue = Math.max(0, st.fatigue - 20); });
+  S.forecast = forecastFor(S);
+  pushLog(S, `День ${S.day}: открываемся. Прогноз ${Math.round(dayDemand(S))} клиентов.`, 'info');
+  scheduleEvents(S);
+}
+
+function scheduleEvents(S){
+  // 1-2 события за день в случайные моменты
+  const n = chance(S, 0.55) ? 2 : 1;
+  const times = [];
+  for (let i=0;i<n;i++) times.push(ri(S, 60, 640));
+  S.eventQueue = times.sort((a,b)=>a-b).map(t => ({ at:t, fired:false }));
+}
+
+function stepMinute(S){
+  if (S.phase !== 'day' || S.event || S.over) return;
+  S.minutes++;
+
+  // задача игрока
+  if (S.player && S.player.busy){
+    S.player.busy.t--;
+    if (S.player.busy.t <= 0) completePlayerTask(S);
+  }
+
+  // события
+  if (S.eventQueue){
+    for (const ev of S.eventQueue){
+      if (!ev.fired && S.minutes >= ev.at){ ev.fired = true; triggerEvent(S); break; }
+    }
+  }
+
+  // поставки
+  for (const tr of S.trucks){
+    if (!tr.arrived && S.minutes >= tr.arriveAt){
+      tr.arrived = true;
+      const room = Math.max(0, capacity(S).free - S.receiving.length);
+      if (tr.left > room){
+        const dropped = tr.left - room;
+        tr.left = room;
+        if (dropped > 0){
+          S.dayStats.fines += fine(S, dropped * 120);
+          S.nps = clamp(S.nps - 0.02, 0, 5);
+          pushLog(S, `Склад переполнен: ${dropped} посылок не влезли, машина увезла их назад. Штраф.`, 'bad');
+        }
+      }
+      if (tr.left > 0) pushLog(S, `Пришла машина: ${tr.left} посылок. Принимайте!`, 'truck');
+      else pushLog(S, 'Машина приехала и уехала: некуда разгружать.', 'bad');
+    }
+    if (tr.arrived && tr.left > 0){
+      tr.waitLeft--;
+      if (tr.waitLeft <= 0){
+        if (tr.left > 0){
+          const pen = fine(S, 300 + tr.left * 50);
+          S.nps = clamp(S.nps - 0.03, 0, 5);
+          S.dayStats.fines += pen;
+          pushLog(S, `Машина уехала. ${tr.left} посылок не принято — штраф ${fmt(pen)} ₽.`, 'bad');
+          tr.left = 0;
+        }
+      }
+    }
+  }
+
+  // клиенты
+  const hour = Math.floor(S.minutes / 60);
+  const hw = HOUR_W[Math.min(11, Math.max(0, hour))];
+  const sumW = HOUR_W.reduce((a,b)=>a+b,0);
+  const perMinute = (dayDemand(S) * hw / sumW) / 60;
+  if (chance(S, perMinute)) spawnClient(S);
+
+  // терпение
+  for (const c of S.clients) c.patience--;
+  const gone = S.clients.filter(c => c.patience <= 0);
+  if (gone.length){
+    for (const c of gone){
+      S.nps = clamp(S.nps - (c.consult ? 0.008 : 0.04), 0, 5);
+      if (!c.consult){ S.dayStats.missed++; S.kpiWeek.missed++; }
+      pushLog(S, c.consult ? `Клиент ушёл, не дождавшись консультации.` : `Клиент ушёл без заказа ${c.code}.`, 'bad');
+    }
+    S.clients = S.clients.filter(c => c.patience > 0);
+  }
+  S.dayStats.peakQueue = Math.max(S.dayStats.peakQueue, S.clients.length);
+
+  if (S.fittingBusy && S.fittingBusy.length) S.fittingBusy = S.fittingBusy.filter(b => b.until > S.minutes);
+
+  // усталость команды
+  for (const st of S.staff){
+    st.fatigue = Math.min(100, st.fatigue + 0.12);
+    st.mood = clamp(st.mood - 0.03 + (S.owned.ac ? 0.01 : 0), 0, 100);
+    staffTick(S, st);
+  }
+
+  // усталость директора
+  if (S.minutes % 30 === 0) S.fatigue = Math.min(100, S.fatigue + 0.4 * (S.owned.coffee ? 0.7 : 1));
+
+  if (S.minutes >= CFG.DAY_MIN) endDay(S);
+}
+
+function spawnClient(S){
+  const busy = new Set(S.clients.map(c => c.code).filter(Boolean));
+  const available = storedPackages(S).filter(p => !busy.has(p.code));
+  S.dayStats.arrivals++;
+  S.kpiWeek.arrivals++;
+  const patienceMax = CFG.PATIENCE_BASE * patienceMult(S) * rr(S, 0.85, 1.15);
+
+  if (available.length && chance(S, 0.88)){
+    const pkg = available[ri(S, 0, available.length - 1)];
+    const r = rnd(S);
+    let type = 'normal', mood = 0;
+    if (r > 0.94){ type = 'scandal'; }
+    else if (r > 0.78){ type = 'hurry'; }
+    S.clients.push({
+      id: 'cl' + (S.aid++), code: pkg.code, consult:false, type, tryon: !!pkg.tryon,
+      patience: patienceMax * (type === 'hurry' ? 0.6 : type === 'scandal' ? 0.8 : 1),
+      maxPatience: patienceMax * (type === 'hurry' ? 0.6 : type === 'scandal' ? 0.8 : 1),
+      arrivedAt: S.minutes,
+    });
+  } else {
+    S.clients.push({
+      id: 'cl' + (S.aid++), code: null, consult:true, type:'consult',
+      patience: patienceMax, maxPatience: patienceMax, arrivedAt: S.minutes,
+    });
+  }
+}
+
+function patienceMult(S){
+  let m = 1;
+  if (S.owned.sofa)  m *= ITEMS.sofa.patience;
+  if (S.owned.ac)    m *= ITEMS.ac.patience;
+  if (S.owned.music) m *= ITEMS.music.patience;
+  return m;
+}
+
+/* ---------------- персонал: ИИ ---------------- */
+function staffSpeedMult(S){
+  const st = S.staff.find(s => s.role === 'manager' && s.onShift);
+  return st ? 1.25 : 1;
+}
+
+function searchMinutes(S, st, cellKind){
+  const wrong = cellKind && cellKind === 'std';
+  let t = CFG.SEARCH_BASE;
+  if (S.owned.scanner) t += ITEMS.scanner.search;
+  if (S.owned.printer) t += ITEMS.printer.search;
+  if (!S.owned.counter) t += 15;
+  const skill = st ? (st.sp / 10) : 0.72;
+  t = t * (1.35 - skill * 0.55);
+  const tr = st && TRAITS.find(x => x.id === st.trait);
+  if (tr && tr.speed) t /= tr.speed;
+  t /= staffSpeedMult(S);
+  if (wrong) t += 6;
+  return Math.max(4, Math.round(t * 10) / 10);
+}
+
+function staffTick(S, st){
+  if (!st.onShift) return;
+  if (st.task){
+    st.task.t--;
+    if (st.task.t <= 0) finishTask(S, st);
+    return;
+  }
+  assignTask(S, st);
+}
+
+function assignTask(S, st){
+  const busyClients = new Set(S.staff.map(s => s.task && s.task.kind === 'serve' ? s.task.clientId : null).filter(Boolean));
+  const busyCells = new Set(S.staff.map(s => s.task && s.task.kind === 'place' ? s.task.pkgId : null).filter(Boolean));
+
+  if (st.role === 'seller'){
+    const target = S.clients
+      .filter(c => !c.consult && !busyClients.has(c.id))
+      .map(c => { const cell = findCellByCode(S, c.code); return cell ? Object.assign({}, c, {_shelfId: cell.shelfId, _cellIdx: cell.cellIdx}) : null; })
+      .filter(Boolean)
+      .sort((a,b) => a.patience - b.patience)[0];
+    if (target){
+      const sh = S.shelves.find(x => x.id === target._shelfId);
+      const k = sh ? sh.kind : 'std';
+      const dur = searchMinutes(S, st, k);
+      st.task = { kind:'serve', clientId:target.id, shelfId:target._shelfId, cellIdx:target._cellIdx, t:dur, total:dur };
+      return;
+    }
+  }
+  if (st.role === 'loader'){
+    const pkg = S.receiving.find(p => !busyCells.has(p.id));
+    if (pkg && freeCellFor(S, pkg)){
+      const cell = freeCellFor(S, pkg);
+      const dur = Math.max(2, 4 - st.sp * 0.2);
+      st.task = { kind:'place', pkgId:pkg.id, cell:{ shelfId:cell.shelf.id, idx:cell.idx }, t:dur, total:dur };
+      return;
+    }
+    const tr = S.trucks.find(t => t.arrived && t.left > 0);
+    if (tr && S.receiving.length < CFG.RECV_MAX && capacity(S).free > S.receiving.length){
+      const durA = Math.max(1.5, 3 - st.sp * 0.15);
+      st.task = { kind:'accept', truckId: tr.arriveAt, t:durA, total:durA };
+    }
+  }
+}
+
+function finishTask(S, st){
+  const task = st.task; st.task = null;
+  if (!task) return;
+  if (task.kind === 'serve'){
+    const c = S.clients.find(x => x.id === task.clientId);
+    if (!c) return;
+    const cell = findCellByCode(S, c.code);
+    if (!cell) return;
+    const sh = S.shelves.find(x => x.id === cell.shelfId);
+    if (!sh || !sh.cells[cell.cellIdx]) return;
+    const pkg = sh.cells[cell.cellIdx];
+    sh.cells[cell.cellIdx] = null;
+    issueInternal(S, c, pkg, st);
+  }
+  if (task.kind === 'place'){
+    const pkg = S.receiving.find(p => p.id === task.pkgId);
+    if (!pkg) return;
+    const target = freeCellFor(S, pkg);
+    if (!target) return;
+    takeFromReceiving(S, pkg);
+    target.shelf.cells[target.idx] = pkg;
+    st.mood = clamp(st.mood + 0.05, 0, 100);
+  }
+  if (task.kind === 'accept'){
+    acceptBox(S, true);
+  }
+}
+
+function freeCellFor(S, pkg){
+  const zone = zoneOf(pkg);
+  let best = null;
+  for (const sh of S.shelves){
+    if (sh.kind !== zone) continue;
+    for (let i=0;i<sh.cells.length;i++){
+      if (!sh.cells[i]){ best = { shelf:sh, idx:i }; break; }
+    }
+    if (best) break;
+  }
+  return best;
+}
+
+/* ---------------- действия игрока ---------------- */
+function acceptBox(S, silent){
+  if (S.phase !== 'day') return { ok:false, msg:'Сейчас не рабочий день' };
+  const tr = S.trucks.find(t => t.arrived && t.left > 0);
+  if (!tr) return { ok:false, msg:'Машины нет' };
+  if (S.receiving.length >= CFG.RECV_MAX) return { ok:false, msg:'Зона приёмки переполнена' };
+  if (capacity(S).free <= S.receiving.length) return { ok:false, msg:'Нет свободных ячеек на полках' };
+  if (tired(S)) return { ok:false, msg:'Вы вымотаны — нужна пауза' };
+  if (S.player.busy) return { ok:false, msg:'Вы обслуживаете клиента — сначала закончите' };
+
+  const pkg = makePackage(S);
+  S.receiving.push(pkg);
+  tr.left--;
+  S.dayStats.accepted++;
+  spendFatigue(S, 0.8);
+  if (!silent) pushLog(S, `Принята посылка ${pkg.code} (${pkg.size}${pkg.fragile?', хрупкое':''})`, 'accept');
+  return { ok:true };
+}
+
+function makePackage(S){
+  const r = rnd(S);
+  let size = 'M', fragile = false;
+  if (r > 0.965) size = 'XL';
+  else if (r > 0.86) size = 'L';
+  else if (r > 0.62) size = 'S';
+  fragile = chance(S, 0.07);
+  return {
+    id: 'p' + (S.aid++),
+    code: codeGen(S),
+    size, fragile,
+    tryon: size !== 'XL' && chance(S, 0.25),
+    slaDay: S.day + ri(S, 3, 7),
+    day: S.day,
+  };
+}
+
+function codeGen(S){
+  const letters = 'АБВГДКМНПРСТЗ';
+  const used = new Set(storedPackages(S).map(p => p.code).concat(S.receiving.map(p => p.code)));
+  for (let i=0;i<500;i++){
+    const c = letters[ri(S,0,letters.length-1)] + '-' + ri(S,1000,9999);
+    if (!used.has(c)) return c;
+  }
+  return 'Я-' + (S.aid++);
+}
+
+function takeFromReceiving(S, pkg){
+  S.receiving = S.receiving.filter(p => p.id !== pkg.id);
+}
+
+function placeBox(S, pkgId, shelfId, cellIdx){
+  if (S.phase !== 'day') return { ok:false };
+  if (tired(S)) return { ok:false, msg:'Вы вымотаны' };
+  if (S.player.busy) return { ok:false, msg:'Вы обслуживаете клиента' };
+  const pkg = S.receiving.find(p => p.id === pkgId);
+  if (!pkg) return { ok:false, msg:'Посылки нет в приёмке' };
+  const sh = S.shelves.find(s => s.id === shelfId);
+  if (!sh) return { ok:false };
+  const need = zoneOf(pkg);
+  if (sh.kind !== need && sh.kind !== 'std') return { ok:false, msg:`Нужна зона «${ZONE_LABEL[need]}» или обычный стеллаж` };
+  if (sh.cells[cellIdx]) return { ok:false, msg:'Ячейка занята' };
+  takeFromReceiving(S, pkg);
+  sh.cells[cellIdx] = pkg;
+  spendFatigue(S, 0.8);
+  return { ok:true };
+}
+
+function sleepTired(S){ /* noop */ }
+
+function tired(S){ return S.minutes < (S.tiredUntil || 0); }
+
+function spendFatigue(S, n){
+  S.fatigue = Math.min(100, S.fatigue + n * (S.owned.coffee ? 0.7 : 1));
+  if (S.fatigue >= 95){
+    S.tiredUntil = S.minutes + 25;
+    S.fatigue = 60;
+    pushLog(S, 'Вы вымотаны. Присядьте на 25 минут — без вас никто не обслуживает клиентов.', 'bad');
+  }
+}
+
+/* ---------- адреса ячеек ---------- */
+const SHELF_LETTERS = ['А','Б','В','Г','Д','Е','Ж','З'];
+
+function shelfName(S, shelfId){
+  const i = S.shelves.findIndex(s => s.id === shelfId);
+  return 'Стеллаж ' + (SHELF_LETTERS[i] || '?');
+}
+function cellAddress(S, shelfId, cellIdx){
+  return shelfName(S, shelfId) + ' · ячейка ' + (cellIdx + 1);
+}
+function clientLocation(S, clientId){
+  const c = S.clients.find(x => x.id === clientId);
+  if (!c || !c.code) return null;
+  const cell = findCellByCode(S, c.code);
+  if (!cell) return null;
+  return {
+    shelfId: cell.shelfId, cellIdx: cell.cellIdx, pkg: cell.pkg,
+    address: cellAddress(S, cell.shelfId, cell.cellIdx),
+  };
+}
+
+/* время дойти до стеллажа зависит от того, насколько он далеко от стойки */
+function fetchMinutes(S, shelfId){
+  const d = shelfDistance(S, shelfId);
+  let t = (d >= 99) ? 12 : 2 + d * 0.45;
+  if (S.owned.scanner) t -= 1;
+  if (S.fatigue > CFG.DIRTY_TIRED) t += 2;
+  t /= staffSpeedMult(S);
+  return Math.max(2, Math.round(t));
+}
+const HANDOVER_MIN = 2;
+
+/* шаг 1: пошли за посылкой */
+function startFetch(S, clientId){
+  if (S.phase !== 'day') return { ok:false };
+  if (tired(S)) return { ok:false, msg:'Вы вымотаны — отдышитесь' };
+  if (S.hands) return { ok:false, msg:'Сначала отдайте посылку клиенту' };
+  if (S.player.busy) return { ok:false, msg:'Вы уже в пути' };
+  const loc = clientLocation(S, clientId);
+  if (!loc) return { ok:false, msg:'Этой посылки нет на полке' };
+  const t = fetchMinutes(S, loc.shelfId);
+  S.player.busy = { kind:'fetch', clientId, shelfId:loc.shelfId, cellIdx:loc.cellIdx, t, total:t };
+  return { ok:true, minutes:t, address:loc.address, started:true };
+}
+
+/* шаг 2: отдать клиенту */
+function giveToClient(S, clientId){
+  if (S.phase !== 'day') return { ok:false };
+  if (!S.hands) return { ok:false, msg:'В руках нет посылки' };
+  if (S.player.busy) return { ok:false, msg:'Вы уже в пути' };
+  if (tired(S)) return { ok:false, msg:'Вы вымотаны' };
+  const c = S.clients.find(x => x.id === clientId);
+  if (!c){
+    returnToShelf(S, S.hands);
+    S.hands = null;
+    return { ok:false, msg:'Клиент ушёл — посылка вернулась на полку' };
+  }
+  const t = HANDOVER_MIN;
+  S.player.busy = { kind:'handover', clientId, t, total:t };
+  return { ok:true, minutes:t, started:true };
+}
+
+function returnHands(S){
+  if (!S.hands) return { ok:false, msg:'Руки пусты' };
+  if (S.player.busy) return { ok:false, msg:'Сначала закончите' };
+  returnToShelf(S, S.hands);
+  S.hands = null;
+  return { ok:true };
+}
+
+function returnToShelf(S, pkg){
+  for (const sh of S.shelves){
+    if (sh.kind !== zoneOf(pkg) && sh.kind !== 'std') continue;
+    const idx = sh.cells.indexOf(null);
+    if (idx >= 0){ sh.cells[idx] = pkg; return true; }
+  }
+  if (S.receiving.length < CFG.RECV_MAX){ S.receiving.push(pkg); return true; }
+  return false;
+}
+
+function issueInternal(S, c, pkg, st){
+  const sumSla = S.minutes - c.arrivedAt;
+  S.dayStats.issued++;
+  S.dayStats.slaSum += sumSla;
+  S.kpiWeek.issued++;
+  S.kpiWeek.slaSum += sumSla;
+
+  const pay = CFG.PAY_BASE * payoutMult(S, pkg);
+  let tip = 0;
+  if (c.type === 'hurry') tip = 70 * (c.patience / c.maxPatience);
+  else tip = 50 * (c.patience / c.maxPatience);
+  if (c.type === 'scandal'){
+    const mgr = S.staff.find(s => s.role === 'manager' && s.onShift);
+    if (!mgr){ S.nps = clamp(S.nps - 0.02, 0, 5); tip = 0; }
+  }
+  const reward = Math.round(pay + tip);
+  S.money += reward;
+  S.dayStats.revenue += Math.round(pay);
+  S.dayStats.tips += Math.round(tip);
+
+  S.nps = clamp(S.nps + metricNpsDelta(S, sumSla, c), 0, 5);
+  addXp(S, 12);
+
+  if (pkg.tryon) handleFitting(S, c, pay, st);
+
+  S.clients = S.clients.filter(x => x.id !== c.id);
+  if (st) st.mood = clamp(st.mood + 0.1, 0, 100);
+  if (!st) pushLog(S, `Выдан ${pkg.code} за ${Math.round(sumSla)} мин. +${fmt(reward)} ₽`, 'good');
+}
+
+/* примерочная: одежду хотят примерить */
+function handleFitting(S, c, pay, st){
+  const rooms = S.fixtures.filter(f => f.itemId === 'fitting').length;
+  const busy = S.fittingBusy.filter(b => b.until > S.minutes).length;
+  if (rooms > busy){
+    S.fittingBusy.push({ until: S.minutes + 20 });
+    S.money += 40;
+    S.dayStats.revenue += 40;
+    S.dayStats.tryon++;
+    S.nps = clamp(S.nps + 0.008, 0, 5);
+    if (!st) pushLog(S, 'Клиент ушёл в примерочную (+40 ₽ за услугу)', 'good');
+    return;
+  }
+  S.nps = clamp(S.nps - 0.005, 0, 5);
+  if (chance(S, 0.08)){
+    const back = Math.round(pay * 0.5);
+    S.money -= back;
+    S.dayStats.fines += back;
+    pushLog(S, `Негде примерить — клиент вернул заказ. −${fmt(back)} ₽`, 'bad');
+  } else if (!st){
+    pushLog(S, 'Примерить негде — клиент недоволен.', 'warn');
+  }
+}
+
+function metricNpsDelta(S, sla, c){
+  const target = contractOf(S).sla;
+  let d = sla <= target * 0.6 ? 0.008 : sla <= target ? 0.003 : sla <= target * 1.6 ? -0.008 : -0.025;
+  if (c.type === 'scandal') d -= 0.01;
+  return d;
+}
+
+function consult(S, clientId){
+  if (tired(S)) return { ok:false, msg:'Вы вымотаны' };
+  if (S.player.busy) return { ok:false, msg:'Вы обслуживаете клиента' };
+  const c = S.clients.find(x => x.id === clientId);
+  if (!c || !c.consult) return { ok:false };
+  S.clients = S.clients.filter(x => x.id !== c.id);
+  S.money += 25;
+  S.dayStats.revenue += 25;
+  S.dayStats.consults++;
+  S.nps = clamp(S.nps + 0.004, 0, 5);
+  spendFatigue(S, 1);
+  return { ok:true };
+}
+
+function playerServiceMinutes(S, cellKind){
+  let t = 10;
+  if (S.owned.counter) t -= 2;
+  if (S.owned.scanner) t -= 2;
+  if (S.owned.printer) t -= 1;
+  if (cellKind === 'std') t += 5;
+  if (S.fatigue > CFG.DIRTY_TIRED) t += 3;
+  t /= staffSpeedMult(S);
+  return Math.max(4, Math.round(t));
+}
+
+function cancelService(S){
+  if (!S.player.busy) return { ok:false };
+  const c = S.clients.find(x => x.id === S.player.busy.clientId);
+  S.player.busy = null;
+  if (c) pushLog(S, `Вы прервали обслуживание ${c.code} — клиент ждёт дальше.`, 'warn');
+  return { ok:true };
+}
+
+function completePlayerTask(S){
+  const b = S.player.busy;
+  S.player.busy = null;
+  if (!b) return;
+
+  if (b.kind === 'fetch'){
+    const c = S.clients.find(x => x.id === b.clientId);
+    const sh = S.shelves.find(x => x.id === b.shelfId);
+    if (!sh || !sh.cells[b.cellIdx]) return;
+    const pkg = sh.cells[b.cellIdx];
+    if (!c || pkg.code !== c.code) return;
+    if (zoneOf(pkg) !== 'std' && sh.kind === 'std' && chance(S, 0.10)){
+      const f = fine(S, 700);
+      S.dayStats.fines += f;
+      S.nps = clamp(S.nps - 0.05, 0, 5);
+      sh.cells[b.cellIdx] = null;
+      pushLog(S, `По дороге разбилась посылка ${pkg.code}: лежала в общей зоне. −${fmt(f)} ₽`, 'bad');
+      return;
+    }
+    const addr = cellAddress(S, b.shelfId, b.cellIdx);
+    sh.cells[b.cellIdx] = null;
+    S.hands = pkg;
+    const fx = S.fixtures.find(f => f.shelfId === b.shelfId);
+    if (fx) S.player.stand = [fx.x + (b.cellIdx % fx.w), fx.y + Math.floor(b.cellIdx / fx.w)];
+    spendFatigue(S, 1);
+    pushLog(S, `Взяли ${pkg.code} — ${addr}. Несите клиенту.`, 'info');
+    return;
+  }
+
+  if (b.kind === 'handover'){
+    const pkg = S.hands;
+    S.hands = null;
+    S.player.stand = null;
+    const c = S.clients.find(x => x.id === b.clientId);
+    if (!c){ if (pkg) returnToShelf(S, pkg); return; }
+    spendFatigue(S, 1);
+    issueInternal(S, c, pkg, null);
+  }
+}
+
+function payoutMult(S, pkg){
+  const b = brandOf(S), p = premOf(S);
+  let m = p.payout * b.payout * (0.70 + 0.30 * compliance(S));
+  if (S.owned.terminal) m *= ITEMS.terminal.pay;
+  m *= 1 + (S.lvl - 1) * 0.05;
+  m *= contractOf(S).pay;
+  return m;
+}
+
+function fine(S, amount){
+  return Math.round(amount * (S.owned.cam ? ITEMS.cam.fines : 1));
+}
+
+/* ---------------- планировка зала ---------------- */
+function fixtureAt(S, x, y){
+  for (const f of S.fixtures) if (x >= f.x && x < f.x + f.w && y >= f.y && y < f.y + f.h) return f;
+  return null;
+}
+
+function canPlaceAt(S, w, h, x, y){
+  if (x < 0 || y < 0 || x + w > S.grid.w || y + h > S.grid.h) return false;
+  for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) if (fixtureAt(S, x + dx, y + dy)) return false;
+  return true;
+}
+
+function freeArea(S){
+  let free = 0;
+  for (let y = 0; y < S.grid.h; y++) for (let x = 0; x < S.grid.w; x++) if (!fixtureAt(S, x, y)) free++;
+  return free;
+}
+
+function placeFixture(S, itemId, x, y){
+  if (S.phase !== 'plan') return { ok:false, msg:'Планировка доступна до начала дня' };
+  const it = ITEMS[itemId];
+  if (!it || !it.physical) return { ok:false, msg:'Этот предмет не ставится в зал' };
+  const idx = S.unplaced.indexOf(itemId);
+  if (idx < 0) return { ok:false, msg:'Нет свободного предмета — сначала купите' };
+  const w = it.size.w, h = it.size.h;
+  if (!canPlaceAt(S, w, h, x, y)) return { ok:false, msg:'Здесь не помещается' };
+
+  const fid = 'f' + (S.aid++);
+  const fx = { id:fid, itemId, x, y, w, h, shelfId:null };
+  if (it.cap){
+    const sh = { id:'sh' + (S.aid++), kind:it.zone, cap:it.cap, cells:new Array(it.cap).fill(null), fx:fid };
+    S.shelves.push(sh);
+    fx.shelfId = sh.id;
+  }
+  S.fixtures.push(fx);
+  S.unplaced.splice(idx, 1);
+  return { ok:true, id:fid };
+}
+
+function canPlaceIgnoring(S, fx, w, h, x, y){
+  if (x < 0 || y < 0 || x + w > S.grid.w || y + h > S.grid.h) return false;
+  for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++){
+    const f = fixtureAt(S, x + dx, y + dy);
+    if (f && f.id !== fx.id) return false;
+  }
+  return true;
+}
+
+function moveFixture(S, fid, x, y){
+  if (S.phase !== 'plan') return { ok:false, msg:'Только до начала дня' };
+  const fx = S.fixtures.find(f => f.id === fid);
+  if (!fx) return { ok:false, msg:'Нет такого предмета' };
+  if (!canPlaceIgnoring(S, fx, fx.w, fx.h, x, y)) return { ok:false, msg:'Здесь занято' };
+  fx.x = x; fx.y = y;
+  return { ok:true };
+}
+
+function removeFixture(S, fid){
+  if (S.phase !== 'plan') return { ok:false, msg:'Только до начала дня' };
+  const fx = S.fixtures.find(f => f.id === fid);
+  if (!fx) return { ok:false, msg:'Нет такого предмета' };
+  if (fx.shelfId){
+    const sh = S.shelves.find(x => x.id === fx.shelfId);
+    if (sh && sh.cells.some(Boolean)) return { ok:false, msg:'На стеллаже есть посылки — сначала выдайте их' };
+    S.shelves = S.shelves.filter(x => x.id !== fx.shelfId);
+    if (S.owned[fx.itemId]) S.owned[fx.itemId]--;
+  } else {
+    if (S.owned[fx.itemId]) S.owned[fx.itemId]--;
+  }
+  S.fixtures = S.fixtures.filter(f => f.id !== fid);
+  S.unplaced.push(fx.itemId);
+  return { ok:true };
+}
+
+function autoLayout(S){
+  let placed = 0;
+  for (const itemId of [...S.unplaced]){
+    const it = ITEMS[itemId];
+    let done = false;
+    for (let y = 0; y < S.grid.h && !done; y++){
+      for (let x = 0; x < S.grid.w && !done; x++){
+        if (canPlaceAt(S, it.size.w, it.size.h, x, y)){
+          if (placeFixture(S, itemId, x, y).ok){ placed++; done = true; }
+        }
+      }
+    }
+    if (!done) break;
+  }
+  return { ok:true, placed };
+}
+
+/* путь по проходам между двумя клетками (мебель непроходима, кроме старта и цели) */
+function gridPath(S, from, to){
+  if (!from || !to) return [];
+  const key = (x, y) => x + ':' + y;
+  const blocked = (x, y) => {
+    if (x < 0 || y < 0 || x >= S.grid.w || y >= S.grid.h) return true;
+    if (x === to[0] && y === to[1]) return false;
+    if (x === from[0] && y === from[1]) return false;
+    return !!fixtureAt(S, x, y);
+  };
+  const prev = new Map([[key(from[0], from[1]), null]]);
+  const q = [from];
+  let head = 0, found = false;
+  while (head < q.length){
+    const [x, y] = q[head++];
+    if (x === to[0] && y === to[1]){ found = true; break; }
+    for (const [nx, ny] of [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]){
+      const k = key(nx, ny);
+      if (prev.has(k) || blocked(nx, ny)) continue;
+      prev.set(k, [x, y]);
+      q.push([nx, ny]);
+    }
+  }
+  if (!found) return [from, to];
+  const out = [];
+  let cur = [to[0], to[1]];
+  while (cur){ out.push(cur); cur = prev.get(key(cur[0], cur[1])); }
+  return out.reverse();
+}
+
+/* дверь (разгрузка машины) — низ зала по центру, если свободно */
+function doorCell(S){
+  const g = S.grid;
+  const cx = Math.floor(g.w / 2);
+  for (let d = 0; d < g.w; d++){
+    for (const x of [cx - d, cx + d]){
+      if (x < 0 || x >= g.w) continue;
+      for (let y = g.h - 1; y >= 0; y--) if (!fixtureAt(S, x, y)) return [x, y];
+    }
+  }
+  return [0, g.h - 1];
+}
+
+function counterCell(S){
+  const cf = S.fixtures.find(f => f.itemId === 'counter');
+  return cf ? [cf.x, cf.y] : [0, 0];
+}
+
+/* путь по проходам от стойки до конкретной ячейки (для анимации) */
+function shelfPath(S, shelfId, cellIdx){
+  const fx = S.fixtures.find(f => f.shelfId === shelfId);
+  if (!fx) return [];
+  const tx = fx.x + (cellIdx % fx.w), ty = fx.y + Math.floor(cellIdx / fx.w);
+  return gridPath(S, counterCell(S), [tx, ty]);
+}
+
+/* где сейчас человечек: [x, y] */
+function playerCell(S){
+  const p = S.player || {};
+  const cf = S.fixtures.find(f => f.itemId === 'counter');
+  const home = cf ? [cf.x, cf.y] : [0, 0];
+  const b = p.busy;
+  if (b && b.kind === 'fetch'){
+    const path = shelfPath(S, b.shelfId, b.cellIdx);
+    if (path.length < 2) return home;
+    const t = 1 - Math.max(0, b.t) / Math.max(1, b.total);
+    return path[Math.min(path.length - 1, Math.round(t * (path.length - 1)))];
+  }
+  if (b && b.kind === 'handover'){
+    const stand = p.stand || home;
+    const t = 1 - Math.max(0, b.t) / Math.max(1, b.total);
+    return [
+      Math.round(stand[0] + (home[0] - stand[0]) * t),
+      Math.round(stand[1] + (home[1] - stand[1]) * t),
+    ];
+  }
+  if (p.stand) return p.stand;
+  return home;
+}
+
+/* где сейчас сотрудник: [x, y] */
+function staffCell(S, st){
+  const home = st.role === 'loader' ? doorCell(S) : counterCell(S);
+  const b = st && st.task;
+  if (!b) return home;
+  const ease = (path, t, total) => {
+    if (!path.length) return home;
+    const k = 1 - Math.max(0, t) / Math.max(1, total);
+    return path[Math.min(path.length - 1, Math.round(k * (path.length - 1)))];
+  };
+  if (b.kind === 'serve' && b.shelfId != null){
+    const fx = S.fixtures.find(f => f.shelfId === b.shelfId);
+    if (!fx) return home;
+    const target = [fx.x + (b.cellIdx % fx.w), fx.y + Math.floor(b.cellIdx / fx.w)];
+    return ease(gridPath(S, counterCell(S), target), b.t, b.total);
+  }
+  if (b.kind === 'place' && b.cell){
+    const fx = S.fixtures.find(f => f.shelfId === b.cell.shelfId);
+    if (!fx) return home;
+    const target = [fx.x + (b.cell.idx % fx.w), fx.y + Math.floor(b.cell.idx / fx.w)];
+    return ease(gridPath(S, doorCell(S), target), b.t, b.total);
+  }
+  if (b.kind === 'accept') return doorCell(S);
+  return home;
+}
+
+/* расстояние от стойки до стеллажа по проходам (BFS) */
+function shelfDistance(S, shelfId){
+  const sh = S.shelves.find(x => x.id === shelfId);
+  if (!sh) return 99;
+  const cf = S.fixtures.find(f => f.itemId === 'counter');
+  const startCells = [];
+  if (cf) for (let dy=0; dy<cf.h; dy++) for (let dx=0; dx<cf.w; dx++) startCells.push([cf.x+dx, cf.y+dy]);
+  else startCells.push([0,0]);
+
+  const target = new Set();
+  const fx = S.fixtures.find(f => f.shelfId === shelfId);
+  if (fx) for (let dy=0; dy<fx.h; dy++) for (let dx=0; dx<fx.w; dx++) target.add((fx.x+dx) + ':' + (fx.y+dy));
+  else return 99;
+
+  const blocked = (x,y) => {
+    if (x < 0 || y < 0 || x >= S.grid.w || y >= S.grid.h) return true;
+    const f = fixtureAt(S, x, y);
+    if (!f) return false;
+    if (fx && f.id === fx.id) return false;
+    if (cf && f.id === cf.id) return false;
+    return true;
+    
+  };
+  const dist = new Map();
+  const q = [];
+  for (const [x,y] of startCells){ dist.set(x+':'+y, 0); q.push([x,y,0]); }
+  let head = 0;
+  while (head < q.length){
+    const [x,y,d] = q[head++];
+    if (target.has(x+':'+y)) return d;
+    if (d > 40) continue;
+    for (const [nx,ny] of [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]){
+      const k = nx+':'+ny;
+      if (dist.has(k) || blocked(nx,ny)) continue;
+      dist.set(k, d+1);
+      q.push([nx, ny, d+1]);
+    }
+  }
+  return 99;
+}
+
+/* ---------------- кредит ---------------- */
+function loanLimit(S){ return Math.round(dayDemand(S) * CFG.PAY_BASE * CFG.LOAN_LIMIT_MULT / 1000) * 1000; }
+
+function takeLoan(S, amount){
+  if (S.phase !== 'plan') return { ok:false, msg:'Кредит — в фазе планирования' };
+  const limit = loanLimit(S) - S.debt;
+  amount = Math.min(amount, limit);
+  if (amount <= 0) return { ok:false, msg:'Лимит исчерпан' };
+  S.debt += amount;
+  S.money += amount;
+  pushLog(S, `Взят кредит ${fmt(amount)} ₽ под 0.7%/день. Платёж ежедневный.`, 'warn');
+  return { ok:true };
+}
+
+/* ---------------- уровни ---------------- */
+function xpNeed(S){ return Math.round(150 * Math.pow(S.lvl, 1.6)); }
+
+function addXp(S, n){
+  S.xp += n;
+  while (S.xp >= xpNeed(S)){
+    S.xp -= xpNeed(S);
+    S.lvl++;
+    pushLog(S, `Уровень ${S.lvl}! Открыты новые возможности.`, 'lvl');
+  }
+}
+
+/* ---------------- события ---------------- */
+const EVENTS = [
+  {
+    id:'inspect', minDay:5, title:'Проверка Роспотребнадзора',
+    text:'Инспектор на пороге. В зале пыльно, но полки в порядке.',
+    options:[
+      { text:'Дать «на кофе» (−12000 ₽)', money:-12000, nps:0.02, log:'Инспектор ушёл довольным. Но осадочек.' },
+      { text:'Пустить как есть', fine:6000, nps:-0.15, log:'Штраф выписан, NPS просел.' },
+      { text:'Закрыться и убраться (день −2 часа)', skip:120, nps:0.05, log:'Чисто, но потеряли 2 часа торговли.' },
+    ],
+  },
+  {
+    id:'advance', minDay:3, title:'Сотрудник просит аванс',
+    text:'«Мне бы 5 000 до пятницы, очень надо».',
+    options:[
+      { text:'Дать 5000 ₽ сейчас', money:-5000, mood:12, log:'Команда оценила. Настроение выросло.' },
+      { text:'Отказать', mood:-10, nps:-0.01, log:'Обиделся. Работает хуже.' },
+      { text:'Дать под условие «суббота — рабочая»', money:-5000, mood:6, fatigueTeam:8, log:'Согласился. Но суббота будет тяжёлой.' },
+    ],
+  },
+  {
+    id:'tariff', minDay:3, title:'Маркетплейс предлагает новый объём',
+    text:'+30% посылок, но −15% к выплате за заказ и строже SLA.',
+    options:[
+      { text:'Согласиться', pay:-0.15, traffic:1.3, log:'Объём вырос, маржа упала.' },
+      { text:'Отказаться', nps:-0.02, log:'Объём ушёл соседнему ПВЗ.' },
+    ],
+  },
+  {
+    id:'scandal', minDay:1, title:'Скандал в зале',
+    text:'Клиент снимает на телефон: «Мой заказ потеряли!»',
+    options:[
+      { text:'Публично извиниться и дать скидку (−2000 ₽)', money:-2000, nps:0.06, log:'Видео вышло добрым. NPS вырос.' },
+      { text:'Спокойно найти заказ', nps:0.01, spendMin:20, log:'Нашли. Нервы, но репутация цела.' },
+      { text:'Выгнать', nps:-0.12, log:'Видео набрало просмотры. Плохо.' },
+    ],
+  },
+  {
+    id:'blogger', minDay:4, title:'Блогер снимает ролик',
+    text:'«Ребята, у вас тут мило. Можно снять?»',
+    options:[
+      { text:'Заплатить за рекламу 8000 ₽', money:-8000, traffic:1.15, log:'Охват вырос: поток +15% на неделю.' },
+      { text:'Разрешить бесплатно', nps:0.03, log:'Сняли. Вышло неплохо.' },
+      { text:'Отказать', log:'Сняли «как есть» — без восторгов.' },
+    ],
+  },
+  {
+    id:'fridge', minDay:4, title:'Сломался кондиционер',
+    text:'На улице +32, в зале душно.',
+    options:[
+      { text:'Ремонт сейчас (−8000 ₽)', money:-8000, log:'Починили. Клиенты довольны.' },
+      { text:'Ждать мастера 2 дня', nps:-0.08, mood:-10, log:'Два дня духоты.' },
+    ],
+  },
+];
+
+function triggerEvent(S){
+  const pool = EVENTS.filter(e => S.day >= (e.minDay || 1));
+  if (!pool.length) return;
+  const ev = pick(S, pool);
+  S.event = { ...ev, endsAt: S.minutes + 45 };
+}
+
+function resolveEvent(S, optionIdx){
+  const ev = S.event;
+  if (!ev) return;
+  const opt = ev.options[optionIdx];
+  S.event = null;
+  if (!opt) return;
+  if (opt.money){ S.money += opt.money; S.dayStats.events = (S.dayStats.events || 0) + opt.money; }
+  if (opt.fine){ const f = fine(S, opt.fine); S.dayStats.fines += f; S.money -= f; }
+  if (opt.nps) S.nps = clamp(S.nps + opt.nps, 0, 5);
+  if (opt.mood) S.staff.forEach(st => st.mood = clamp(st.mood + opt.mood, 0, 100));
+  if (opt.fatigueTeam) S.staff.forEach(st => st.fatigue = Math.min(100, st.fatigue + opt.fatigueTeam));
+  if (opt.skip) S.minutes += opt.skip;
+  if (opt.spendMin && chance(S, 0.85)) S.nps = clamp(S.nps + (opt.nps||0), 0, 5);
+  if (opt.pay) S.eventPayMod = (S.eventPayMod || 1) * (1 + opt.pay);
+  if (opt.traffic) S.eventTrafficMod = (S.eventTrafficMod || 1) * opt.traffic;
+  pushLog(S, `${ev.title}: ${opt.log}`, 'event');
+}
+
+function autoResolveEvent(S){
+  if (S.event) resolveEvent(S, S.event.options.length - 1);
+}
+
+/* ---------------- разбор дня ---------------- */
+function endDay(S){
+  if (S.phase !== 'day') return;
+  S.phase = 'report';
+  S.speed = 0;
+  S.event = null;
+
+  const p = premOf(S);
+  const ds = S.dayStats;
+  let payroll = 0, onPrepay = 0;
+  for (const st of S.staff){
+    if ((st.prepay || 0) > 0){ st.prepay--; onPrepay++; }
+    else payroll += st.salary;
+  }
+  S.dayStats.onPrepay = onPrepay;
+  const rent = p.rent;
+  const util = CFG.UTIL_PER_DAY;
+  const loanPay = Math.round(S.debt * CFG.LOAN_RATE);
+  const gross = ds.revenue;
+  const tax = S.day % 7 === 0 ? Math.round(gross * CFG.TAX_RATE) : 0;
+
+  const costs = rent + util + payroll + loanPay + tax + ds.fines;
+  S.money -= costs;
+  ds.payroll = payroll; ds.rent = rent; ds.util = util; ds.tax = tax; ds.loan = loanPay;
+  ds.net = gross + ds.tips + (ds.events || 0) - costs;
+
+  const avgSla = ds.issued ? ds.slaSum / ds.issued : 0;
+  const missedRate = ds.arrivals ? ds.missed / ds.arrivals : 0;
+
+  S.history.push({
+    day: S.day, revenue: gross + ds.tips, costs, net: ds.net,
+    issued: ds.issued, missed: ds.missed, avgSla, nps: S.nps,
+  });
+  S.kpiWeek.days++;
+
+  // недельный аудит
+  if (S.day % 7 === 0) weeklyAudit(S);
+
+  // усталость и текучка
+  S.fatigue = Math.max(0, S.fatigue - 55);
+  S.staff.forEach(st => {
+    st.daysWorked++;
+    if (st.mood < 22 && chance(S, 0.5)){
+      pushLog(S, `${st.name} уволился: «Устал, извините».`, 'bad');
+      st.quit = true;
+    }
+  });
+  S.staff = S.staff.filter(st => !st.quit);
+
+  if (S.money < 0){
+    S.negDays++;
+    if (S.negDays >= CFG.NEG_DAYS_LIMIT){
+      S.over = true; S.overReason = 'bankrupt';
+    }
+  } else S.negDays = 0;
+
+  S.report = { day:S.day, ds:{ ...ds }, costs, avgSla, missedRate, p };
+
+  if (S.eventTrafficMod){ S.trafficModWeek = (S.trafficModWeek||1) * S.eventTrafficMod; S.eventTrafficMod = 1; }
+}
+
+function weeklyAudit(S){
+  const k = S.kpiWeek;
+  if (!k.issued && !k.arrivals){ return; }
+  const avgSla = k.issued ? k.slaSum / k.issued : 999;
+  const missed = k.arrivals ? k.missed / k.arrivals : 0;
+  const cur = contractOf(S);
+  const brandOk = compliance(S) >= cur.brand;
+
+  const ok = avgSla <= cur.sla && missed <= cur.missed && S.nps >= cur.nps && brandOk;
+  if (!ok && S.contractIdx > 0){
+    S.contractIdx--;
+    pushLog(S, `Аудит не пройден: контракт понижен до «${contractOf(S).name}».`, 'bad');
+    S.nps = clamp(S.nps - 0.1, 0, 5);
+  } else if (ok && S.contractIdx < CONTRACTS.length - 1){
+    const next = CONTRACTS[S.contractIdx + 1];
+    const serverCash = 12000;
+    const better = avgSla <= next.sla && missed <= next.missed && S.nps >= next.nps && compliance(S) >= next.brand;
+    if (better && S.money >= serverCash){
+      S.money -= serverCash;
+      S.contractIdx++;
+      pushLog(S, `Заявка одобрена: контракт «${contractOf(S).name}»! (−${fmt(serverCash)} ₽ за аккредитацию)`, 'lvl');
+    }
+  } else {
+    pushLog(S, `Аудит пройден: KPI в норме.`, 'good');
+  }
+  S.kpiWeek = { issued:0, slaSum:0, missed:0, arrivals:0, days:0 };
+}
+
+function nextDay(S){
+  if (S.over) return;
+  S.day++;
+  S.minutes = 0;
+  S.phase = 'plan';
+  S.clients = [];
+  S.trucks = [];
+  S.event = null;
+  S.report = null;
+  S.dayStats = freshDayStats();
+  S.recalcDone = false;
+  S.staff.forEach(st => { st.task = null; st.onShift = true; });
+  recalcForecast(S);
+  buildCandidates(S);
+  pushLog(S, `День ${S.day}. Утро. Касса: ${fmt(S.money)} ₽.`, 'info');
+}
+
+/* ---------------- сохранение ---------------- */
+function serialize(S){
+  const copy = { ...S };
+  delete copy.eventQueue;
+  return JSON.stringify(copy);
+}
+
+function deserialize(str){
+  try {
+    const S = JSON.parse(str);
+    if (!S || typeof S !== 'object' || !S.day) return null;
+    return S;
+  } catch(e){ return null; }
+}
+
+/* ---------------- утилиты для UI ---------------- */
+const CLAMP = (v,a,b) => Math.max(a, Math.min(b, v));
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+function payrollNow(S){
+  return S.staff.filter(st => (st.prepay || 0) <= 0).reduce((a, st) => a + st.salary, 0);
+}
+
+function contractStatus(S){
+  const k = S.kpiWeek;
+  const avgSla = k.issued ? k.slaSum / k.issued : 0;
+  const missed = k.arrivals ? k.missed / k.arrivals : 0;
+  const cur = contractOf(S);
+  return {
+    avgSla: Math.round(avgSla), missed, nps: S.nps, compliance: compliance(S),
+    slaOk: avgSla <= cur.sla || !k.issued,
+    missedOk: missed <= cur.missed,
+    npsOk: S.nps >= cur.nps,
+    brandOk: compliance(S) >= cur.brand,
+  };
+}
+
+function dayLabel(S){
+  const total = CFG.START_HOUR * 60 + S.minutes;
+  const h = Math.floor(total / 60), m = total % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
+const ZONES = ZONE_LABEL;
+
+return { CFG, BRANDS, PREMISES, ITEMS, ROLES, CONTRACTS, rnd, brandOf, premOf, contractOf, compliance, slotsUsed, capacity, zoneOf, storedPackages, findCellByCode, createGame, fmt, pushLog, itemLocked, canBuy, buy, hireCost, hireBreakdown, canHire, hire, fire, dayDemand, recalcForecast, forecastFor, expirePackages, layoutProblems, startDay, stepMinute, searchMinutes, acceptBox, placeBox, sleepTired, shelfName, cellAddress, clientLocation, fetchMinutes, HANDOVER_MIN, startFetch, giveToClient, returnHands, consult, playerServiceMinutes, cancelService, payoutMult, fixtureAt, canPlaceAt, freeArea, placeFixture, canPlaceIgnoring, moveFixture, removeFixture, autoLayout, gridPath, doorCell, shelfPath, playerCell, staffCell, shelfDistance, loanLimit, takeLoan, xpNeed, addXp, resolveEvent, autoResolveEvent, endDay, nextDay, serialize, deserialize, CLAMP, payrollNow, contractStatus, dayLabel, ZONES };
+})();
+/* Набор векторных иконок (24×24, обводка currentColor).
+   Инлайн-SVG: работает без сети и в песочнице предпросмотра. */
+
+const ICON_PATHS = {
+  /* навигация */
+  layout: '<rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>',
+  bag: '<path d="M5.5 8h13l-1.1 11.2a2 2 0 0 1-2 1.8H8.6a2 2 0 0 1-2-1.8L5.5 8z"/><path d="M9 8V6.2a3 3 0 0 1 6 0V8"/>',
+  users: '<circle cx="9" cy="8" r="3.2"/><path d="M3.2 20.2c0-3.2 2.6-5.8 5.8-5.8s5.8 2.6 5.8 5.8"/><path d="M16.6 11.4a3 3 0 1 0-1.2-5.7"/><path d="M17.4 14.7c2.1.6 3.6 2.4 3.6 4.6"/>',
+  archive: '<rect x="3" y="3.8" width="18" height="5.2" rx="1.8"/><path d="M4.8 9v9.2a2 2 0 0 0 2 2h10.4a2 2 0 0 0 2-2V9"/><path d="M9.8 13h4.4"/>',
+
+  /* показатели */
+  wallet: '<path d="M3.2 8.4A2.4 2.4 0 0 1 5.6 6h11.2a2.4 2.4 0 0 1 2.4 2.4v1.1"/><path d="M3.2 8.4v9.2A2.4 2.4 0 0 0 5.6 20h12.8a2.4 2.4 0 0 0 2.4-2.4v-6.2a2.4 2.4 0 0 0-2.4-2.4H3.2z"/><circle cx="16.4" cy="14.4" r="1.3"/>',
+  star: '<path d="M12 3.6l2.6 5.3 5.9.9-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-.9L12 3.6z"/>',
+  award: '<circle cx="12" cy="9" r="4.8"/><path d="M8.6 13.2 7.5 21l4.5-2.3 4.5 2.3-1.1-7.8"/>',
+  zap: '<path d="M13.2 2.6 4.8 13.8h6.1l-1.1 7.6 8.4-11.2h-6.1l1.1-7.6z"/>',
+
+  /* день */
+  truck: '<rect x="2.4" y="7.2" width="10.8" height="9" rx="1.6"/><path d="M13.2 10.4h3.1l3.3 3.2v2.6h-6.4"/><circle cx="6.9" cy="18.2" r="1.8"/><circle cx="16.7" cy="18.2" r="1.8"/>',
+  inbox: '<path d="M2.8 13.2h4.6l1.4 2.8h6.4l1.4-2.8h4.6"/><path d="M5.2 4.6h13.6l2.4 8.6v4.2a2 2 0 0 1-2 2H4.8a2 2 0 0 1-2-2v-4.2l2.4-8.6z"/>',
+  activity: '<path d="M2.8 12.4h3.4l2.2-5.8 3.2 11 2.6-7.6 1.8 2.4h4.8"/>',
+  box: '<path d="M12 2.8 3.2 7.4v9.2L12 21.2l8.8-4.6V7.4L12 2.8z"/><path d="M3.2 7.4 12 12l8.8-4.6M12 12v9.2"/>',
+  package: '<path d="M12 3.4 4.4 7.2v8.4l7.6 3.8 7.6-3.8V7.2L12 3.4z"/><path d="M4.4 7.2 12 11l7.6-3.8M12 11v8.4"/><path d="M8.2 5.3l7.6 3.8"/>',
+  map: '<path d="M9 3.6 3.2 6v14.4L9 18l6 2.4 5.8-2.4V3.6L15 6 9 3.6z"/><path d="M9 3.6V18M15 6v14.4"/>',
+  pin: '<path d="M12 21.2s6.8-6.4 6.8-11a6.8 6.8 0 1 0-13.6 0c0 4.6 6.8 11 6.8 11z"/><circle cx="12" cy="10.2" r="2.6"/>',
+  clock: '<circle cx="12" cy="12" r="8.6"/><path d="M12 7.4V12l3.2 2.1"/>',
+  check: '<path d="M4.8 12.6 9.4 17 19.2 6.8"/>',
+  x: '<path d="M6.4 6.4 17.6 17.6M17.6 6.4 6.4 17.6"/>',
+  chevron: '<path d="M9.4 5.4 16.2 12l-6.8 6.6"/>',
+  plus: '<path d="M12 5.2v13.6M5.2 12h13.6"/>',
+  refresh: '<path d="M4 10.2a8 8 0 0 1 13.6-4.4L20.4 8"/><path d="M20.4 3.6V8h-4.4"/><path d="M20 13.8a8 8 0 0 1-13.6 4.4L3.6 16"/><path d="M3.6 20.4V16h4.4"/>',
+  undo: '<path d="M4 8.6h9.4a5.4 5.4 0 0 1 0 10.8H8.4"/><path d="M8.2 4.4 4 8.6l4.2 4.2"/>',
+  alert: '<path d="M12 3.6 2.6 20.2h18.8L12 3.6z"/><path d="M12 9.6v5"/><circle cx="12" cy="17.4" r="1"/>',
+  info: '<circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5.4"/><circle cx="12" cy="7.8" r="1"/>',
+  help: '<circle cx="12" cy="12" r="8.6"/><path d="M9.6 9.4a2.6 2.6 0 1 1 3.6 2.4c-.8.4-1.2 1-1.2 1.9"/><circle cx="12" cy="16.8" r="1"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 14.4a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1v.3a2 2 0 1 1-4 0v-.2a1.6 1.6 0 0 0-2.8-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 4.2 14H4a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 11 3.4V3a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7h.3a2 2 0 1 1 0 4h-.3a1.6 1.6 0 0 0-1.1 1.1z"/>',
+  flag: '<path d="M5.4 21V4.2"/><path d="M5.4 4.2h11.2l-1.6 4.2 1.6 4.2H5.4"/>',
+  lamp: '<path d="M9.4 17.6h5.2M10.4 21h3.2"/><path d="M12 3.2a6 6 0 0 0-3.4 10.9v3.5h6.8v-3.5A6 6 0 0 0 12 3.2z"/>',
+  scan: '<path d="M4 8.4V6.6A2.6 2.6 0 0 1 6.6 4h1.8M15.6 4h1.8A2.6 2.6 0 0 1 20 6.6v1.8M20 15.6v1.8A2.6 2.6 0 0 1 17.4 20h-1.8M8.4 20H6.6A2.6 2.6 0 0 1 4 17.4v-1.8"/><path d="M3.4 12h17.2"/>',
+  printer: '<path d="M7.2 8.4V4.2h9.6v4.2"/><rect x="3.6" y="8.4" width="16.8" height="7.6" rx="2"/><path d="M7.2 16h9.6v4.2H7.2z"/>',
+  card: '<rect x="2.6" y="5.4" width="18.8" height="13.2" rx="2.6"/><path d="M2.6 10h18.8"/><path d="M6.4 15h3.8"/>',
+  coffee: '<path d="M4 8.2h11.6v6.2a5.2 5.2 0 0 1-5.2 5.2H9.2A5.2 5.2 0 0 1 4 14.4V8.2z"/><path d="M15.6 9.4h2.2a2.6 2.6 0 0 1 0 5.2h-2.2"/><path d="M4 20.6h11.6"/>',
+  sofa: '<path d="M5.4 11.4V8.6a2 2 0 0 1 2-2h9.2a2 2 0 0 1 2 2v2.8"/><path d="M2.8 12.6a2 2 0 0 1 3.8.9v3.1h10.8v-3.1a2 2 0 0 1 3.8-.9v6.2H2.8v-6.2z"/>',
+  door: '<path d="M5.4 21V4.6a1.4 1.4 0 0 1 1.4-1.4h8.4a1.4 1.4 0 0 1 1.4 1.4V21"/><path d="M3.4 21h17.2"/><circle cx="13.8" cy="12" r="1"/>',
+  wind: '<path d="M3.4 8.2h10.4a3 3 0 1 0-3-3"/><path d="M3.4 12h14.2a3 3 0 1 1-3 3"/><path d="M3.4 15.8h6.8"/>',
+  music: '<path d="M9.4 18.4V6.4l10-2v12"/><circle cx="6.8" cy="18.4" r="2.6"/><circle cx="16.8" cy="16.4" r="2.6"/>',
+  video: '<rect x="2.8" y="6.2" width="12.4" height="11.6" rx="2.6"/><path d="M15.2 11 21.2 7.6v8.8L15.2 13"/>',
+  shelf: '<path d="M4 3.6v16.8M20 3.6v16.8"/><path d="M4 9.6h16M4 15.4h16"/>',
+  fragile: '<path d="M12 3.4 4.4 7.2v8.4l7.6 3.8 7.6-3.8V7.2L12 3.4z"/><path d="M12 8.6v3.2M12 14.4v.2"/>',
+  boxes: '<rect x="2.6" y="7.4" width="8.6" height="8.8" rx="1.6"/><rect x="12.8" y="10.6" width="8.6" height="8.8" rx="1.6"/><path d="M2.6 11.4h8.6M12.8 14.6h8.6"/>',
+  store: '<path d="M3.4 9.4 5 4.2h14l1.6 5.2"/><path d="M4.6 9.4V20h14.8V9.4"/><path d="M3.4 9.4h17.2"/><path d="M9.4 20v-5.4h5.2V20"/>',
+  cart: '<circle cx="9.4" cy="19.6" r="1.5"/><circle cx="17.6" cy="19.6" r="1.5"/><path d="M2.6 3.6h2.8l2.4 11.2h11l2-8.2H7"/>',
+  user: '<circle cx="12" cy="8" r="3.4"/><path d="M5.4 20.4a6.6 6.6 0 0 1 13.2 0"/>',
+  loader: '<circle cx="12" cy="7.4" r="3.2"/><path d="M6.2 20.4v-1.8a4 4 0 0 1 4-4h3.6a4 4 0 0 1 4 4v1.8"/><path d="M4.4 12.4 7 15l4.4-2.2"/>',
+  manager: '<rect x="3" y="8.2" width="18" height="11.4" rx="2.4"/><path d="M9 8.2V6.4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.8"/><path d="M3 13.2h18"/>',
+  sparkle: '<path d="M12 3.2l1.9 4.9 4.9 1.9-4.9 1.9L12 16.8l-1.9-4.9-4.9-1.9 4.9-1.9L12 3.2z"/><path d="M18.6 16.4l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z"/>',
+  chart: '<path d="M4 20V4"/><path d="M4 20h16"/><rect x="7.4" y="12" width="3.4" height="5.2" rx="1"/><rect x="13" y="8.2" width="3.4" height="9" rx="1"/>',
+  play: '<path d="M8 5.6 18.4 12 8 18.4z"/>',
+  pause: '<rect x="8.4" y="6.4" width="2.8" height="11.2" rx="1.2"/><rect x="12.8" y="6.4" width="2.8" height="11.2" rx="1.2"/>',
+  fire: '<path d="M12 21c3.6 0 6-2.4 6-5.6 0-4.2-4.4-5.6-4.4-9.8 0 0-3.6 1.6-3.6 5.2 0 1.6.8 2.4.8 3.4 0 1-.8 1.8-1.8 1.8s-1.8-.8-1.8-1.8c0-.4.1-.7.2-1C6.6 13.9 6 14.7 6 15.6 6 18.6 8.4 21 12 21z"/>',
+};
+
+function icon(name, cls){
+  const p = ICON_PATHS[name];
+  if (!p) return '';
+  return `<svg class="i${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+}
+
+/* иконка предмета по его id */
+const ITEM_ICONS = {
+  counter:'store', banner:'flag', light:'lamp', scanner:'scan', printer:'printer',
+  terminal:'card', coffee:'coffee', sofa:'sofa', fitting:'door', ac:'wind',
+  music:'music', cam:'video', shelfStd:'shelf', shelfFrag:'fragile', shelfKgt:'boxes',
+};
+function itemIcon(id, cls){ return icon(ITEM_ICONS[id] || 'box', cls); }
+
+const ROLE_ICONS = { seller:'user', loader:'loader', manager:'manager' };
+function roleIcon(role, cls){ return icon(ROLE_ICONS[role] || 'user', cls); }
+
+/* ============================================================
+   ПВЗ-Сити — интерфейс
+   ============================================================ */
+
+const U = {
+  screen: 'start',
+  tab: 'shop',
+  sel: { brand: 'plus', premise: 'spal' },
+  selClient: null,
+  selBox: null,
+  selItem: null,
+  moveId: null,
+  toast: null,
+  toastUntil: 0,
+  lastRender: 0,
+  installEvt: null,      // beforeinstallprompt
+  installed: false,      // запущено как установленное приложение
+  installHelp: false,    // модалка «как установить»
+  online: true,
+  swReady: null,         // регистрация service worker (если есть)
+};
+
+let S = null;
+let rafId = null;
+let lastTs = 0;
+let acc = 0;
+
+const $app = () => document.getElementById('app');
+const fmt = E.fmt;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------------- утилиты UI ---------------- */
+function toast(msg, kind = 'info'){
+  U.toast = { msg, kind };
+  U.toastUntil = performance.now() + 2600;
+}
+function pct(a, b){ return Math.max(0, Math.min(100, b ? a / b * 100 : 0)); }
+
+function applyAccent(){
+  const b = S ? E.brandOf(S) : { color:'#3b82f6', color2:'#1d4ed8' };
+  document.documentElement.style.setProperty('--accent', b.color);
+  document.documentElement.style.setProperty('--accent2', b.color2 || b.color);
+}
+
+/* ---------------- звук ---------------- */
+let AC = null, soundOn = true;
+function beep(freq = 440, dur = 0.06, type = 'sine', vol = 0.04){
+  if (!soundOn) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g); g.connect(AC.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
+    o.stop(AC.currentTime + dur);
+  } catch(e){}
+}
+
+/* ---------------- старт ---------------- */
+function safeGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function safeDel(k){ try { localStorage.removeItem(k); } catch(e){} }
+
+function boot(){
+  let saved = null;
+  try { saved = localStorage.getItem('pvz_save_v1'); } catch(e){ saved = null; }   // iframe без same-origin
+  if (saved){
+    const s = E.deserialize(saved);
+    if (s){ S = s; U.screen = s.phase === 'report' ? 'report' : s.phase === 'day' ? 'day' : 'plan'; }
+  }
+  applyAccent();
+  initPwa();
+  loop(performance.now());
+}
+
+/* ---------------- PWA: установка и офлайн ---------------- */
+function isStandalone(){
+  try {
+    return window.matchMedia('(display-mode: standalone)').matches
+      || window.matchMedia('(display-mode: fullscreen)').matches
+      || window.navigator.standalone === true;
+  } catch(e){ return false; }
+}
+
+function initPwa(){
+  U.installed = isStandalone();
+  U.online = navigator.onLine !== false;
+
+  window.addEventListener('online', () => {
+    U.online = true;
+    toast('Снова в сети — прогресс синхронизирован', 'good');
+    render();
+  });
+  window.addEventListener('offline', () => {
+    U.online = false;
+    toast('Офлайн: игра продолжается, прогресс сохраняется', 'info');
+    render();
+  });
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    U.installEvt = e;
+    render();
+  });
+  window.addEventListener('appinstalled', () => {
+    U.installEvt = null;
+    U.installed = true;
+    toast('Приложение установлено', 'good');
+    render();
+  });
+
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      U.swReady = reg;
+      render();
+    }).catch(() => {});
+  }
+}
+
+function installHints(){
+  const ua = navigator.userAgent || '';
+  const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const android = /Android/.test(ua);
+  const chromium = /Chrome|Edg|SamsungBrowser/.test(ua);
+  if (ios) return [
+    'Откройте сайт в Safari.',
+    'Нажмите «Поделиться» в нижней панели.',
+    'Выберите «На экран „Домой“» — иконка появится на телефоне.',
+  ];
+  if (android && chromium) return [
+    'Нажмите «Установить приложение» ниже.',
+    'Или меню ⋮ → «Установить приложение» / «Добавить на главный экран».',
+  ];
+  if (chromium) return [
+    'В адресной строке нажмите иконку установки (монитор со стрелкой).',
+    'Или меню ⋮ → «Установить ПВЗ-Сити».',
+  ];
+  return [
+    'На Android — Chrome: меню ⋮ → «Установить приложение».',
+    'На iPhone — Safari: «Поделиться» → «На экран „Домой“».',
+    'На компьютере игра работает и во вкладке браузера.',
+  ];
+}
+
+function newGame(){
+  const qs = new URLSearchParams(location.search);
+  const seed = qs.get('seed');
+  S = E.createGame({ brandId: U.sel.brand, premiseId: U.sel.premise, ...(seed ? { seed: +seed } : {}) });
+  U.screen = 'plan';
+  U.tab = 'shop';
+  save();
+  applyAccent();
+  beep(520, 0.08, 'triangle');
+}
+
+function save(){
+  if (!S) return;
+  try { localStorage.setItem('pvz_save_v1', E.serialize(S)); } catch(e){}
+}
+
+/* ---------------- главный цикл ---------------- */
+function loop(ts){
+  rafId = requestAnimationFrame(loop);
+  const dt = Math.min(0.1, (ts - lastTs) / 1000 || 0);
+  lastTs = ts;
+
+  if (S && S.phase === 'day' && S.speed > 0 && !S.event && !S.over){
+    acc += dt * E.CFG.MIN_PER_SEC * S.speed;
+    let guard = 0;
+    while (acc >= 1 && guard++ < 60){
+      E.stepMinute(S);
+      acc -= 1;
+      if (S.phase !== 'day') { acc = 0; U.screen = 'report'; save(); break; }
+      if (S.event) { acc = 0; break; }
+    }
+  }
+
+  if (ts - U.lastRender > 110){
+    U.lastRender = ts;
+    render();
+  }
+}
+
+/* ---------------- рендер ---------------- */
+/* доступ к состоянию для отладки и автотестов */
+window.__pvz = { state: () => S, ui: U, E, act: (t, d) => act(t, d), stats: () => ({ full: paintCount, patch: patchCount, by: { ...patchByKey } }) };
+
+function render(){
+  if (U.toast && performance.now() > U.toastUntil) U.toast = null;
+  if (S && U.selClient && !S.clients.some(c => c.id === U.selClient)) U.selClient = null;
+  if (S && U.selBox && !S.receiving.some(p => p.id === U.selBox)) U.selBox = null;
+  const app = $app();
+  if (!app) return;
+
+  const shell = !S || U.screen === 'start' ? 'start'
+    : U.screen === 'report' ? 'report'
+    : U.screen === 'plan' ? 'plan'
+    : 'day';
+  const body = shell === 'start' ? viewStart()
+    : shell === 'report' ? viewReport()
+    : shell === 'plan' ? viewPlan()
+    : viewDay();
+  const overlays = (U.toast ? `<div class="toast ${U.toast.kind}">${esc(U.toast.msg)}</div>` : '')
+    + (S && S.event ? viewEvent() : '')
+    + (U.menu ? viewMenu() : '')
+    + (U.help ? viewHelp() : '')
+    + (U.installHelp ? viewInstall() : '');
+
+  paint(`<div class="shell" data-shell="${shell}">${body}<div id="ovl">${overlays}</div></div>`);
+  liveUpdate();
+}
+
+/* Перерисовка только изменившихся участков: без мигания и без сброса скролла */
+let paintCount = 0, patchCount = 0;
+const patchByKey = {};
+/* сравнение регионов без «быстрых» значений: их обновляет liveUpdate */
+function regionHtml(el){
+  const c = el.cloneNode(true);
+  for (const n of c.querySelectorAll('[data-live]')){
+    n.textContent = '';
+    n.removeAttribute('style');
+  }
+  return c.outerHTML;
+}
+
+function paint(html){
+  const app = $app();
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  const fresh = tpl.content.firstElementChild;
+  const cur = app.firstElementChild;
+  const curShell = cur ? cur.getAttribute('data-shell') : null;
+  const newShell = fresh ? fresh.getAttribute('data-shell') : null;
+
+  if (!cur || curShell !== newShell || !fresh.querySelector('[data-r]')){
+    app.innerHTML = html;
+    paintCount++;
+    return;
+  }
+
+  const regions = [...fresh.querySelectorAll('[data-r]')];
+  for (const el of regions){
+    const key = el.getAttribute('data-r');
+    const old = app.querySelector(`[data-r="${key}"]`);
+    if (!old){ app.innerHTML = html; paintCount++; return; }
+    if (regionHtml(old) !== regionHtml(el)){
+      old.replaceWith(el);
+      patchCount++;
+      patchByKey[key] = (patchByKey[key] || 0) + 1;
+    }
+  }
+  const ovlNew = fresh.querySelector('#ovl');
+  const ovlOld = app.querySelector('#ovl');
+  if (ovlNew && ovlOld && ovlOld.innerHTML !== ovlNew.innerHTML) ovlOld.innerHTML = ovlNew.innerHTML;
+}
+
+/* Быстрые обновления: цифры и полоски, которые меняются каждую минуту */
+function liveUpdate(){
+  const app = $app();
+  if (!app || !S) return;
+  const set = (sel, val) => { const el = app.querySelector(sel); if (el && el.textContent !== val) el.textContent = val; };
+  const width = (sel, val) => { const el = app.querySelector(sel); if (el) el.style.width = val + '%'; };
+
+  if (S.phase === 'day') set('[data-live="clock"]', E.dayLabel(S));
+  set('[data-live="money"]', fmt(S.money) + ' ₽');
+  width('[data-live="xp"]', pct(S.xp, E.xpNeed(S)));
+  if (S.phase === 'day'){
+    width('[data-live="fatigue"]', Math.round(S.fatigue));
+    set('[data-live="fatigue-t"]', 'усталость ' + Math.round(S.fatigue) + '%');
+    const tr = S.trucks.find(t => t.arrived && t.left > 0);
+    if (tr){
+      set('[data-live="truck-t"]', `осталось ${Math.max(0, tr.waitLeft)} мин`);
+      width('[data-live="truck-bar"]', pct(tr.waitLeft, tr.waitTotal || 300));
+    }
+    for (const c of S.clients){
+      width(`[data-live="pat:${c.id}"]`, pct(c.patience, c.maxPatience));
+    }
+    const b = S.player.busy;
+    if (b){
+      set('[data-live="clt:' + b.clientId + '"]', String(Math.max(0, Math.ceil(b.t))));
+      set('[data-live="busy-t"]', Math.max(0, Math.ceil(b.t)) + ' мин');
+      set('[data-live="ab-t"]', Math.max(0, Math.ceil(b.t)) + ' мин');
+      width('[data-live="ab-bar"]', pct(b.total - b.t, b.total));
+      width('[data-live="busy-bar"]', pct(b.total - b.t, b.total));
+    }
+    const cap = app.querySelector('[data-live="map-cap"]');
+    if (cap){
+      const txt = mapCaption();
+      if (cap.textContent !== txt) cap.textContent = txt;
+    }
+    const [px, py] = E.playerCell(S);
+    const tok = app.querySelector('[data-live="tok"]');
+    if (tok){
+      const col = String(px + 1), row = String(py + 1);
+      if (tok.style.gridColumn !== col) tok.style.gridColumn = col;
+      if (tok.style.gridRow !== row) tok.style.gridRow = row;
+      const isCarry = S.hands && !(S.player.busy && S.player.busy.kind === 'handover');
+      const want = isCarry ? 'box' : 'user';
+      if (tok.dataset.ico !== want){ tok.dataset.ico = want; tok.innerHTML = icon(want); }
+    }
+    (S.staff || []).forEach((st, i) => {
+      if (!st.onShift) return;
+      const el = app.querySelector(`[data-live="st:${i}"]`);
+      if (!el) return;
+      const [sx, sy] = E.staffCell(S, st);
+      const col = String(sx + 1), row = String(sy + 1);
+      if (el.style.gridColumn !== col) el.style.gridColumn = col;
+      if (el.style.gridRow !== row) el.style.gridRow = row;
+    });
+  }
+}
+
+/* ---------------- онбординг ---------------- */
+function viewStart(){
+  const brands = E.BRANDS.map(b => `
+    <button class="card brand ${U.sel.brand === b.id ? 'sel' : ''}" data-act="pickBrand" data-id="${b.id}" style="--b:${b.color}">
+      <div class="brand-tile" style="--b:${b.color};--b2:${b.color2}">${b.name[0]}</div>
+      <div class="card-title">${b.name}</div>
+      <div class="card-sub">${b.tag}</div>
+      <div class="chips">
+        <span class="chip">поток ×${b.traffic}</span>
+        <span class="chip">выплата ×${b.payout.toFixed(2)}</span>
+      </div>
+      <div class="muted small">Брендбук: ${b.req.length} требования</div>
+    </button>`).join('');
+
+  const prems = E.PREMISES.map(p => `
+    <button class="card ${U.sel.premise === p.id ? 'sel' : ''}" data-act="pickPremise" data-id="${p.id}" ${p.lvl > 1 ? 'disabled' : ''}>
+      <div class="card-title ico-lead">${icon('store')} ${p.name} ${p.lvl > 1 ? '<span class="lock">с ур. '+p.lvl+'</span>' : ''}</div>
+      <div class="card-sub">${p.desc}</div>
+      <div class="chips">
+        <span class="chip">аренда ${fmt(p.rent)} ₽/день</span>
+        <span class="chip">депозит ${p.deposit ? fmt(p.deposit)+' ₽' : '—'}</span>
+        <span class="chip">поток ×${p.traffic}</span>
+        <span class="chip">${p.gw}×${p.gh} клеток зала</span>
+      </div>
+    </button>`).join('');
+
+  return `
+  <div class="start">
+    <div class="logo">
+      <div class="logo-mark">${icon('box')}</div>
+      <div>
+        <h1>ПВЗ-Сити</h1>
+        <div class="muted">Симулятор управления пунктом выдачи заказов</div>
+      </div>
+    </div>
+    <p class="lead">Вы открываете свой пункт. Денег мало, команды нет, а клиенты уже идут.
+      Держите рейтинг, не срывайте сроки, считайте каждую копейку — и однажды вы будете управлять сетью.</p>
+    <div class="start-feats">
+      <span class="feat">${icon('users')} Работаете сами, потом нанимаете</span>
+      <span class="feat">${icon('truck')} Поставки дважды в день</span>
+      <span class="feat">${icon('layout')} Планировка зала руками</span>
+      <span class="feat">${icon('award')} Контракт и аудит каждую неделю</span>
+    </div>
+
+    <h2 class="sec">1. Франшиза</h2>
+    <div class="grid3">${brands}</div>
+
+    <h2 class="sec">2. Помещение</h2>
+    <div class="grid3">${prems}</div>
+
+    <div class="start-foot">
+      <div class="muted small">Стартовый капитал 60 000 ₽ минус депозит помещения.</div>
+      <button class="btn primary big" data-act="startGame">Открыть ПВЗ ${icon('chevron')}</button>
+    </div>
+  </div>`;
+}
+
+/* ---------------- HUD ---------------- */
+function viewHud(){
+  const brand = E.brandOf(S);
+  const cont = E.contractOf(S);
+  const xpNeed = E.xpNeed(S);
+  return `
+  <header class="hud" data-r="hud">
+    <div class="hud-left">
+      <div class="hud-day">День ${S.day}</div>
+      <div class="hud-clock" data-live="clock">${S.phase === 'day' ? E.dayLabel(S) : S.phase === 'plan' ? 'утро · планирование' : 'итоги дня'}</div>
+    </div>
+    <div class="hud-mid">
+      <div class="metric"><span class="m-label">${icon('wallet')}Касса</span><span class="m-val" data-live="money">${fmt(S.money)} ₽</span></div>
+      <div class="metric"><span class="m-label">${icon('star')}NPS</span><span class="m-val ${S.nps < 4 ? 'warn' : 'good'}">${S.nps.toFixed(2)}</span></div>
+      <div class="metric"><span class="m-label">${icon('award')}Контракт</span><span class="m-val" style="color:${cont.color}">${cont.name}</span></div>
+    </div>
+    <div class="hud-right">
+      <div class="lvl">
+        <span>ур. ${S.lvl}</span>
+        <div class="bar thin"><i data-live="xp" style="width:${pct(S.xp, xpNeed)}%"></i></div>
+        ${S.phase === 'day' ? `<span class="tiny" data-live="fatigue-t">усталость ${Math.round(S.fatigue)}%</span>
+        <div class="bar thin"><i class="${S.fatigue > 70 ? 'danger' : S.fatigue > 45 ? 'warn' : ''}" data-live="fatigue" style="width:${S.fatigue}%"></i></div>` : ''}
+      </div>
+      ${S.phase === 'day' ? speedButtons() : ''}
+      <button class="btn ghost small iconbtn" data-act="openMenu" title="Меню">${icon('settings')}</button>
+    </div>
+  </header>`;
+}
+
+function speedButtons(){
+  const b = (v, label) => `<button class="spd ${S.speed === v ? 'on' : ''}" data-act="speed" data-v="${v}">${label}</button>`;
+  return `<div class="speeds">${b(0, icon('pause'))}${b(1,'1×')}${b(2,'2×')}${b(3,'3×')}</div>`;
+}
+
+/* ---------------- фаза планирования ---------------- */
+function viewPlan(){
+  const p = E.premOf(S), b = E.brandOf(S);
+  const cap = E.capacity(S);
+  const payroll = E.payrollNow(S);
+  const forecast = E.forecastFor(S);
+  const maxExp = Math.max(...forecast.map(f => f.exp), 1);
+  const expected = Math.round(E.dayDemand(S));
+
+  const bars = forecast.map(f => `
+    <div class="fbar" title="${f.hour}:00 — ${f.exp.toFixed(1)}">
+      <i style="height:${Math.max(4, f.exp / maxExp * 100)}%"></i>
+      <span>${f.hour}</span>
+    </div>`).join('');
+
+  const cs = E.contractStatus(S);
+  const cont = E.contractOf(S);
+
+  return `
+  ${viewHud()}
+  <main class="wrap">
+    <section class="card pad day-brief" data-r="brief">
+      <div class="brief-top">
+        <div>
+          <div class="kicker">Утро · планирование</div>
+          <h2>День ${S.day}</h2>
+          <div class="muted small">${b.name} · ${p.name} · ${new Date().getDay() ? '' : ''}${['пн','вт','ср','чт','пт','сб','вс'][(S.day-1)%7]}</div>
+        </div>
+        <div class="brief-nums">
+          <div class="bn"><b>${expected}</b><span>прогноз клиентов</span></div>
+          <div class="bn"><b>${Math.round(expected*0.95)}</b><span>посылок привезут</span></div>
+          <div class="bn"><b>${cap.free}</b><span>свободно ячеек</span></div>
+        </div>
+      </div>
+      <div class="forecast">${bars}</div>
+      <div class="forecast-legend muted small">Почасовой прогноз потока (погрешность ±15%)</div>
+    </section>
+
+    <section class="grid2" data-r="kpi">
+      <div class="card pad">
+        <h3>${icon('award')} Контракт «${cont.name}»</h3>
+        <div class="kpi">
+          ${kpiRow('Скорость выдачи', cs.avgSla ? cs.avgSla + ' мин' : '—', '≤ ' + cont.sla, cs.slaOk)}
+          ${kpiRow('Упущенные', (cs.missed * 100).toFixed(1) + '%', '≤ ' + (cont.missed * 100).toFixed(1) + '%', cs.missedOk)}
+          ${kpiRow('NPS', S.nps.toFixed(2), '≥ ' + cont.nps, cs.npsOk)}
+          ${kpiRow('Брендбук', Math.round(cs.compliance * 100) + '%', '≥ ' + Math.round(cont.brand * 100) + '%', cs.brandOk)}
+        </div>
+        <div class="muted small">Аудит — каждые 7 дней. Провал — понижение контракта.</div>
+      </div>
+
+      <div class="card pad">
+        <h3>${icon('chart')} Экономика</h3>
+        <div class="kpi">
+          ${moneyRow('Аренда', -p.rent)}
+          ${moneyRow('ФОТ', -payroll)}
+          ${moneyRow('Коммуналка', -E.CFG.UTIL_PER_DAY)}
+          ${S.debt ? moneyRow('Кредит', -Math.round(S.debt * E.CFG.LOAN_RATE)) : ''}
+        </div>
+        ${S.staff.some(st => (st.prepay||0) > 0) ? `<div class="muted small">Аванс покрывает ${S.staff.filter(st=>(st.prepay||0)>0).length} чел. — зарплата за них пока не списывается.</div>` : ''}
+        <div class="row-between">
+          <span class="muted small">Долг: ${fmt(S.debt)} ₽</span>
+          <button class="btn small" data-act="loan" ${S.debt >= E.loanLimit(S) ? 'disabled' : ''}>Взять кредит 20 000 ₽</button>
+        </div>
+      </div>
+    </section>
+
+    <nav class="tabs" data-r="tabs">
+      ${tabBtn('layout','Планировка','layout', S.unplaced.length)}
+      ${tabBtn('shop','Магазин','bag')}
+      ${tabBtn('staff','Команда','users')}
+      ${tabBtn('policy','Склад','archive')}
+    </nav>
+    <section class="card pad tab-body" data-r="tabbody">
+      ${U.tab === 'layout' ? layoutView() : U.tab === 'shop' ? shopView() : U.tab === 'staff' ? staffView() : policyView()}
+    </section>
+
+    <div class="sticky-cta" data-r="cta">
+      <div class="muted small">${hintText()}</div>
+      <button class="btn primary big" data-act="startDay" ${E.layoutProblems(S).length ? 'disabled' : ''}>Начать день ${icon('chevron')}</button>
+    </div>
+  </main>`;
+}
+
+function tabBtn(id, label, ico, badge){
+  return `<button class="tab ${U.tab === id ? 'on' : ''}" data-act="tab" data-id="${id}">${ico ? icon(ico) : ''}<span class="tab-lbl">${label}</span>${badge ? `<b class="tab-badge">${badge}</b>` : ''}</button>`;
+}
+function kpiRow(label, val, target, ok){
+  return `<div class="kpi-row"><span>${label}</span><b class="${ok ? 'good' : 'warn'}">${val}</b><span class="muted small">${target}</span></div>`;
+}
+function moneyRow(label, val){
+  const txt = val === 0 ? '0 ₽' : (val > 0 ? '+' : '') + fmt(val) + ' ₽';
+  return `<div class="kpi-row"><span>${label}</span><b class="${val < 0 ? 'bad' : val > 0 ? 'good' : 'muted'}">${txt}</b><span></span></div>`;
+}
+
+/* компактная карта зала: где вы, куда идти */
+function miniMap(){
+  const g = S.grid;
+  if (!S.fixtures.length) return '';
+
+  const fixes = S.fixtures.map(f => {
+    const it = E.ITEMS[f.itemId];
+    let used = 0;
+    if (f.shelfId){
+      const sh = S.shelves.find(x => x.id === f.shelfId);
+      used = sh ? sh.cells.filter(Boolean).length : 0;
+    }
+    const cls = f.itemId === 'counter' ? 'counter' : f.shelfId ? 'shelf' : f.itemId === 'fitting' ? 'fitting' : 'plain';
+    const fill = f.shelfId && used
+      ? `<span class="mm-fill" style="height:${Math.round(used / (E.ITEMS[f.itemId].cap || 16) * 100)}%"></span>` : '';
+    return `<div class="mm-fix ${cls}" title="${it.name}"
+      style="grid-column:${f.x + 1}/span ${f.w};grid-row:${f.y + 1}/span ${f.h}">${fill}</div>`;
+  }).join('');
+
+  // цель: куда идти (взятый заказ / выбранный клиент)
+  let target = null;
+  const b = S.player.busy;
+  if (b && b.kind === 'fetch'){
+    const fx = S.fixtures.find(f => f.shelfId === b.shelfId);
+    if (fx) target = [fx.x + (b.cellIdx % fx.w), fx.y + Math.floor(b.cellIdx / fx.w)];
+  } else if (S.hands){
+    target = S.player.stand || null;
+  } else if (U.selClient){
+    const loc = E.clientLocation(S, U.selClient);
+    const fx = loc ? S.fixtures.find(f => f.shelfId === loc.shelfId) : null;
+    if (fx && loc) target = [fx.x + (loc.cellIdx % fx.w), fx.y + Math.floor(loc.cellIdx / fx.w)];
+  }
+
+  const [px, py] = E.playerCell(S);
+  const carry = S.hands && !(b && b.kind === 'handover');
+  const onShift = (S.staff || []).filter(st => st.onShift);
+  const occupied = new Map([[px + ':' + py, 1]]);
+  const SHIFTS = ['translate(55%,-55%)', 'translate(-55%,55%)', 'translate(55%,55%)', 'translate(-55%,-55%)'];
+  const staffTokens = (S.staff || []).map((st, idx) => ({ ...st, idx })).filter(st => st.onShift).map(st => {
+    const [sx, sy] = E.staffCell(S, st);
+    const k = sx + ':' + sy;
+    const dup = occupied.get(k) || 0;
+    occupied.set(k, dup + 1);
+    const shift = dup ? SHIFTS[(dup - 1) % SHIFTS.length] : '';
+    const ico = roleIcon(st.role);
+    const what = st.role === 'loader' ? (st.task ? 'разгружает' : 'у двери')
+      : st.role === 'manager' ? 'в зале' : (st.task ? 'обслуживает' : 'свободен');
+    return `<div class="mm-token staff" title="${esc(st.name || '')} · ${what}" data-live="st:${st.idx}"
+      style="grid-column:${sx + 1};grid-row:${sy + 1}${shift ? ';transform:' + shift : ''}">${ico}</div>`;
+  }).join('');
+  const token = `<div class="mm-token ${carry ? 'carry' : ''}" data-live="tok" data-ico="${carry ? 'box' : 'user'}" style="grid-column:${px + 1};grid-row:${py + 1}">${icon(carry ? 'box' : 'user')}</div>`;
+  const tgt = target ? `<div class="mm-target" style="grid-column:${target[0] + 1};grid-row:${target[1] + 1}"></div>` : '';
+
+  const caption = mapCaption();
+
+  return `
+  <div class="card pad minimap" data-r="map">
+    <div class="row-between">
+      <h3>${icon('map')} Зал <span class="mm-legend">${icon(carry ? 'box' : 'user')} вы${onShift.map(st => roleIcon(st.role)).join('')}</span></h3>
+      <span class="muted small" data-live="map-cap">${caption}</span>
+    </div>
+    <div class="mm-room" style="aspect-ratio:${g.w}/${g.h};grid-template-columns:repeat(${g.w},1fr);grid-template-rows:repeat(${g.h},1fr)">
+      ${fixes}${tgt}${staffTokens}${token}
+    </div>
+  </div>`;
+}
+
+function mapCaption(){
+  const b = S.player.busy;
+  if (b && b.kind === 'fetch') return `Идёте к полке · осталось ${Math.max(0, Math.ceil(b.t))} мин`;
+  if (b && b.kind === 'handover') return `Несёте заказ клиенту · ${Math.max(0, Math.ceil(b.t))} мин`;
+  if (S.hands) return 'У полки с посылкой — вернитесь к клиенту';
+  if (U.selClient) return 'Цель подсвечена — жмите «Взять»';
+  return 'Вы у стойки';
+}
+
+function layoutView(){
+  const g = S.grid;
+  let bg = '';
+  for (let y = 0; y < g.h; y++){
+    for (let x = 0; x < g.w; x++){
+      bg += `<button class="rcell" data-act="roomCell" data-x="${x}" data-y="${y}"></button>`;
+    }
+  }
+  const fx = S.fixtures.map(f => {
+    const it = E.ITEMS[f.itemId];
+    const dist = f.shelfId ? E.shelfDistance(S, f.shelfId) : null;
+    return `<div class="rfix ${f.shelfId ? 'is-shelf' : ''} ${f.itemId === 'counter' ? 'is-counter' : ''} ${f.w * f.h <= 1 ? 'sm' : ''} ${U.moveId === f.id ? 'moving' : ''}"
+      data-act="fixTap" data-id="${f.id}"
+      style="grid-column:${f.x + 1}/span ${f.w};grid-row:${f.y + 1}/span ${f.h}">
+      <span class="rfix-ico">${itemIcon(f.itemId)}</span>
+      <span class="rfix-name">${f.shelfId ? E.shelfName(S, f.shelfId).replace('Стеллаж ','Ст. ') : (it.short || it.name)}</span>
+      ${dist != null ? `<span class="rfix-dist">${dist >= 99 ? '!' : dist + ' кл.'}</span>` : ''}
+      <button class="rfix-x" data-act="removeFix" data-id="${f.id}" title="Убрать">${icon('x')}</button>
+    </div>`;
+  }).join('');
+
+  const palette = S.unplaced.length
+    ? S.unplaced.map((id, i) => {
+        const it = E.ITEMS[id];
+        return `<button class="pal ${U.selItem === i ? 'sel' : ''}" data-act="pickItem" data-i="${i}">
+          <span class="pal-ico">${itemIcon(id)}</span>
+          <span class="pal-name">${it.name}</span>
+          <em>${it.size.w}×${it.size.h}</em>
+        </button>`;
+      }).join('')
+    : '<span class="muted small">Всё купленное расставлено.</span>';
+
+  return `
+  <div class="row-between">
+    <h3>${icon('layout')} Планировка зала</h3>
+    <span class="muted small">свободно ${E.freeArea(S)} кл.</span>
+  </div>
+  <div class="muted small" style="margin-bottom:8px">
+    Выберите предмет снизу и тапните по клетке. «кл.» у стеллажа — расстояние от стойки: от него зависит, сколько вы идёте за заказом.
+  </div>
+  <div class="room" style="--cols:${g.w};--rows:${g.h}">
+    <div class="room-bg">${bg}</div>
+    <div class="room-fix">${fx}</div>
+  </div>
+  <div class="row-between" style="margin-top:10px">
+    <div class="muted small">${U.moveId ? 'Тапните клетку — предмет переедет'
+      : U.selItem != null ? 'Тапните по клетке, чтобы поставить'
+      : 'Выберите предмет или тапните по мебели, чтобы передвинуть'}</div>
+    <button class="btn ghost small" data-act="autoLayout">Расставить автоматически</button>
+  </div>
+  <div class="palette">${palette}</div>`;
+}
+
+function shopView(){
+  const ids = Object.keys(E.ITEMS);
+  const slotsUsed = E.slotsUsed(S), slotsMax = E.premOf(S).slots;
+  return `
+  <div class="row-between">
+    <h3>${icon('bag')} Оборудование и мебель</h3>
+    <span class="muted small">Занято ${slotsUsed}/${slotsMax} слотов</span>
+  </div>
+  <div class="shop">
+    ${ids.map(id => {
+      const it = E.ITEMS[id];
+      const owned = S.owned[id] || 0;
+      const locked = it.lvl > S.lvl;
+      const noMoney = S.money < it.cost;
+      const noSpace = E.slotsUsed(S) + it.slots > slotsMax;
+      const can = !locked && !(it.once && owned) && !noMoney && !noSpace;
+      let btn;
+      const inPalette = (S.unplaced || []).includes(id);
+      if (locked) btn = `<span class="muted small">с ур. ${it.lvl}</span>`;
+      else if (it.once && owned) btn = `<span class="ok small">${icon('check')} куплено</span>`;
+      else btn = `<button class="btn small ${can ? '' : 'dis'}" data-act="buy" data-id="${id}" ${can ? '' : 'disabled'}>${inPalette ? 'ещё' : ''} ${fmt(it.cost)} ₽</button>`;
+      return `
+      <div class="item ${locked ? 'locked' : ''}">
+        <div class="item-icon">${itemIcon(id)}</div>
+        <div class="item-main">
+          <div class="item-name">${it.name} ${owned > 1 ? `<span class="chip">×${owned}</span>` : ''}</div>
+          <div class="muted small">${it.desc}${it.physical ? ` · ${it.size.w}×${it.size.h} кл.` : ''}</div>
+        </div>
+        ${btn}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function staffView(){
+  const payroll = S.staff.reduce((a, st) => a + st.salary, 0);
+  const roles = Object.keys(E.ROLES);
+  return `
+  <div class="row-between">
+    <h3>${icon('users')} Команда</h3>
+    <span class="muted small">ФОТ ${fmt(payroll)} ₽/день</span>
+  </div>
+  ${S.staff.length ? `<div class="staff-list">${S.staff.map(st => `
+    <div class="staff-item">
+      <div class="avatar">${st.name[0]}</div>
+      <div class="item-main">
+        <div class="item-name">${st.name} <span class="muted small">${E.ROLES[st.role].name}</span></div>
+        <div class="muted small">${st.traitName} · скорость ${st.sp}/10 · аккуратность ${st.ac} · сервис ${st.sv}</div>
+        <div class="bar"><i style="width:${st.mood}%" class="${st.mood < 35 ? 'danger' : st.mood < 60 ? 'warn' : ''}"></i></div>
+      </div>
+      <div class="staff-right">
+        <div class="small">${(st.prepay||0) > 0 ? `аванс: ${st.prepay} дн.` : fmt(st.salary) + ' ₽/день'}</div>
+        <button class="btn ghost small" data-act="fire" data-id="${st.id}">уволить</button>
+      </div>
+    </div>`).join('')}</div>` : `<div class="empty">Пока вы работаете один. Наймите грузчика — он разгружает поставки, или продавца — он выдаёт заказы.</div>`}
+
+  <h3 class="sec">Кандидаты</h3>
+  <div class="staff-list">
+    ${S.candidates.map(c => {
+      const r = E.ROLES[c.role];
+      const can = E.canHire(S, c.role);
+      const bd = E.hireBreakdown(S, c.role);
+      return `
+      <div class="staff-item cand">
+        <div class="avatar alt">${c.name[0]}<span class="av-role">${roleIcon(c.role)}</span></div>
+        <div class="item-main">
+          <div class="item-name">${c.name} <span class="muted small">${r.name}</span></div>
+          <div class="muted small">${c.traitName}: ${c.traitDesc}</div>
+          <div class="muted small">скорость ${c.sp} · аккуратность ${c.ac} · сервис ${c.sv}</div>
+        </div>
+        <div class="staff-right">
+          <div class="small">${fmt(c.salary)} ₽/день</div>
+          <button class="btn small ${can.ok ? 'primary' : 'dis'}" data-act="hire" data-role="${c.role}" ${can.ok ? '' : 'disabled'}
+            title="Оформление ${fmt(bd.onboard)} ₽ + аванс ${fmt(bd.advance)} ₽ (${bd.days} дн.)">
+            Нанять · ${fmt(bd.total)} ₽</button>
+          <div class="muted tiny">оформл. ${fmt(bd.onboard)} + аванс ${bd.days} дн.</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>
+  <div class="muted small">${E.ROLES.manager.lvl > S.lvl ? `Управляющий откроется на уровне ${E.ROLES.manager.lvl}.` : ''}</div>`;
+}
+
+function policyView(){
+  return `
+  <h3>${icon('archive')} Склад</h3>
+  <div class="muted small">Ячейки: ${E.capacity(S).used}/${E.capacity(S).total} занято. Хрупкое и КГТ лучше держать в своих зонах: в общей они бьются.</div>
+  <div class="policy-group">
+    <div class="policy-title">Правило размещения</div>
+    <div class="seg">
+      <button class="seg-b ${S.policies.placement === 'sla' ? 'on' : ''}" data-act="policy" data-k="placement" data-v="sla">По сроку хранения (SLA)</button>
+      <button class="seg-b ${S.policies.placement === 'code' ? 'on' : ''}" data-act="policy" data-k="placement" data-v="code">По коду</button>
+    </div>
+    <div class="muted small">Влияет на скорость поиска. «По сроку» — горящие заказы ближе к выдаче.</div>
+  </div>
+  <div class="policy-group">
+    <div class="policy-title">Правило переполнения</div>
+    <div class="seg">
+      <button class="seg-b ${S.policies.overflow === 'block' ? 'on' : ''}" data-act="policy" data-k="overflow" data-v="block">Не принимать лишнее</button>
+      <button class="seg-b ${S.policies.overflow === 'reserve' ? 'on' : ''}" data-act="policy" data-k="overflow" data-v="reserve">Складывать в приёмку</button>
+    </div>
+  </div>
+  <div class="policy-group">
+    <div class="policy-title">Просроченные</div>
+    <div class="seg">
+      <button class="seg-b ${S.policies.autoReturn ? 'on' : ''}" data-act="policy" data-k="autoReturn" data-v="1">Автовозврат</button>
+      <button class="seg-b ${!S.policies.autoReturn ? 'on' : ''}" data-act="policy" data-k="autoReturn" data-v="0">Не возвращать</button>
+    </div>
+  </div>`;
+}
+
+/* ---------------- день ---------------- */
+function viewDay(){
+  const truck = S.trucks.find(t => t.arrived && t.left > 0);
+  const cap = E.capacity(S);
+  const busy = S.player.busy;
+  const busyClient = busy ? S.clients.find(c => c.id === busy.clientId) : null;
+
+  const ab = actionBar();
+  return `
+  ${viewHud()}
+  <main class="wrap day${ab ? ' with-bar' : ''}">
+    <div data-r="alerts">
+    ${S.fatigue > 60 ? `<div class="alert warnline">Усталость ${Math.round(S.fatigue)}% — ошибки вероятнее, обслуживание медленнее.</div>` : ''}
+    ${busy ? `<div class="alert busyline">
+        ${icon(busy.kind === 'fetch' ? 'pin' : 'check')} ${busy.kind === 'fetch' ? 'Иду за посылкой' : 'Отдаю заказ'} <b>${busyClient ? esc(busyClient.code) : ''}</b>
+        <div class="bar thin"><i data-live="busy-bar" style="width:${pct(busy.total - busy.t, busy.total)}%"></i></div>
+        <span class="small" data-live="busy-t">${busy.t} мин</span>
+      </div>` : ''}
+    ${(!busy && S.hands) ? `<div class="alert handsline">
+        ${icon('box')} В руках: <b>${esc(S.hands.code)}</b> — несите клиенту
+        <button class="btn ghost small" data-act="returnHands">вернуть на полку</button>
+      </div>` : ''}
+    </div>
+
+    <div class="day-grid">
+      <section class="col sec-a">
+        <div data-r="machine">${truck ? `
+        <div class="card pad truck">
+          <div class="row-between">
+            <div><b class="ico-lead">${icon('truck')} Машина</b> <span class="muted small">${truck.left} посылок · <span data-live="truck-t">уедет через ${Math.max(0, truck.waitLeft)} мин</span></span></div>
+            <div class="row">
+              <button class="btn small primary" data-act="accept">Принять</button>
+              <button class="btn small" data-act="acceptAll">Всё</button>
+            </div>
+          </div>
+          <div class="bar thin"><i class="${truck.waitLeft < 60 ? 'danger' : 'warn'}" data-live="truck-bar" style="width:${pct(truck.waitLeft, 300)}%"></i></div>
+        </div>` : ''}</div>
+
+        <div class="card pad" data-r="receiving">
+          <div class="row-between">
+            <h3>${icon('inbox')} Зона приёмки <span class="muted small">${S.receiving.length}/${E.CFG.RECV_MAX}</span></h3>
+            ${S.receiving.length ? `<button class="btn ghost small" data-act="placeAll">Разложить всё</button>` : ''}
+          </div>
+          ${S.receiving.length ? `<div class="chips wrap">${S.receiving.map(p => `
+            <button class="pk ${U.selBox === p.id ? 'sel' : ''} ${p.fragile ? 'frag' : ''}" data-act="pickBox" data-id="${p.id}">
+              ${p.code}<span class="sz">${p.size}</span>
+            </button>`).join('')}</div>`
+          : emptyBox('Пусто. Примите посылки из машины.')}
+          ${U.selBox ? `<div class="muted small">Выберите свободную ячейку (подсвечены). Хрупкое и КГТ — только в свою зону.</div>` : ''}
+        </div>
+      </section>
+
+      <section class="col sec-b">
+        <div class="card pad" data-r="queue">
+          <div class="row-between">
+            <h3>${icon('users')} Очередь <span class="muted small">${S.clients.length}</span></h3>
+            <span class="muted small">продавцов: ${S.staff.filter(s => s.role === 'seller').length}</span>
+          </div>
+          ${S.clients.length ? `<div class="queue">${S.clients.slice(0, 8).map(c => clientCard(c)).join('')}</div>` : `<div class="empty small">Пока никого. Передохните.</div>`}
+          ${S.clients.length > 8 ? `<div class="muted small">и ещё ${S.clients.length - 8}…</div>` : ''}
+        </div>
+
+        <div class="card pad logcard" data-r="log">
+          <h3>${icon('activity')} Лента</h3>
+          <div class="log">${S.log.slice(0, 7).map(l => `<div class="logline ${l.type}"><span class="lt">${l.t ? String(Math.floor(l.t/60)+9).padStart(2,'0')+':'+String(l.t%60).padStart(2,'0') : ''}</span>${esc(l.text)}</div>`).join('')}</div>
+        </div>
+
+        ${miniMap()}
+      </section>
+
+      <section class="col sec-c">
+        <div class="card pad" data-r="shelves">
+          <h3>${icon('shelf')} Стеллажи <span class="muted small">${cap.used}/${cap.total}</span></h3>
+          ${S.shelves.length ? S.shelves.map(sh => shelfView(sh)).join('') : `<div class="empty">Стеллажей нет. Купите в магазине (в фазе планирования).</div>`}
+        </div>
+      </section>
+    </div>
+
+    ${ab}
+
+    <div class="sticky-cta" data-r="cta">
+      <div class="muted small">${hintText()}</div>
+      <div class="row">
+        ${speedButtons()}
+        <button class="btn ghost" data-act="endDayNow">Завершить день</button>
+      </div>
+    </div>
+  </main>`;
+}
+
+/* панель текущего дела: всегда под рукой, не надо искать клиента на экране */
+function actionBar(){
+  const b = S.player.busy;
+  const sel = U.selClient ? S.clients.find(c => c.id === U.selClient) : null;
+  const loc = sel ? E.clientLocation(S, sel.id) : null;
+
+  let body = '';
+  if (b){
+    const who = S.clients.find(c => c.id === b.clientId);
+    const label = b.kind === 'fetch' ? icon('pin') + ' Иду за посылкой' : icon('check') + ' Несу заказ клиенту';
+    body = `<div class="ab-main">
+        <div class="ab-title">${label}${who ? ' · ' + esc(who.code) : ''}</div>
+        <div class="bar thin"><i data-live="ab-bar" style="width:${pct(b.total - b.t, b.total)}%"></i></div>
+      </div>
+      <div class="ab-time" data-live="ab-t">${Math.max(0, Math.ceil(b.t))} мин</div>`;
+  } else if (S.hands){
+    const c = S.clients.find(x => x.code === S.hands.code);
+    body = `<div class="ab-main">
+        <div class="ab-title">${icon('box')} В руках ${esc(S.hands.code)}</div>
+        <div class="small muted">${c ? 'Несите клиенту' : 'Клиент ушёл — верните на полку'}</div>
+      </div>
+      ${c ? `<button class="btn primary" data-act="give" data-id="${c.id}">Выдать</button>`
+          : `<button class="btn ghost" data-act="returnHands">На полку</button>`}`;
+  } else if (sel && loc){
+    body = `<div class="ab-main">
+        <div class="ab-title">${icon('pin')} ${esc(loc.address)}</div>
+        <div class="small muted">Клиент ${esc(sel.code)}</div>
+      </div>
+      <button class="btn primary" data-act="fetch" data-id="${sel.id}">Взять</button>`;
+  } else if (sel){
+    body = `<div class="ab-main">
+        <div class="ab-title">${icon('alert')} Посылки нет на полке</div>
+        <div class="small muted">Клиент ${esc(sel.code)} ждёт</div>
+      </div>`;
+  } else {
+    return '';
+  }
+  return `<div class="actionbar" data-r="actionbar">${body}</div>`;
+}
+
+function emptyBox(t){ return `<div class="empty small">${t}</div>`; }
+
+function shelfView(sh){
+  const used = sh.cells.filter(c => c).length;
+  const label = E.ZONES[sh.kind] || '';
+  const selC = U.selClient ? S.clients.find(c => c.id === U.selClient) : null;
+  const loc = selC ? E.clientLocation(S, selC.id) : null;
+
+  return `
+  <div class="shelf">
+    <div class="shelf-head">
+      <span class="zone-tag z-${sh.kind}">${E.shelfName(S, sh.id).replace('Стеллаж ','Стеллаж ')} · ${label}</span>
+      <span class="muted small">${used}/${sh.cap} · <span class="ico-inline">${icon('pin')}${E.fetchMinutes(S, sh.id)} мин</span></span>
+    </div>
+    <div class="cells">
+      ${sh.cells.map((cell, i) => {
+        const isLoc = loc && loc.shelfId === sh.id && loc.cellIdx === i;
+        return `<button class="cell ${cell ? 'full' : 'empty'} ${isLoc ? 'located' : ''}" data-act="cell" data-shelf="${sh.id}" data-idx="${i}"
+          title="${cell ? cell.code + ' · ' + cell.size : 'пусто'}">${i + 1}</button>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function clientCard(c){
+  const busy = S.player.busy;
+  const sel = U.selClient === c.id;
+  const loc = sel ? E.clientLocation(S, c.id) : null;
+  const handsForMe = S.hands && c.code === S.hands.code;
+  const patiencePct = pct(c.patience, c.maxPatience);
+  const myTask = busy && busy.clientId === c.id;
+
+  if (c.consult){
+    return `<div class="client consult">
+      <div class="cl-tap static">
+        <div class="cl-code">Вопрос</div>
+        <div class="muted small">Клиент с вопросом</div>
+      </div>
+      <button class="btn small" data-act="consult" data-id="${c.id}">Ответить</button>
+    </div>`;
+  }
+
+  const tags = (c.type === 'hurry' ? '<span class="tag">торопится</span>'
+             : c.type === 'scandal' ? '<span class="tag bad">скандалит</span>' : '')
+             + (c.tryon ? '<span class="tag">примерка</span>' : '');
+
+  let action = '';
+  if (myTask) action = '<div class="cl-act">в пути…</div>';
+  else if (handsForMe) action = `<button class="btn small primary" data-act="give" data-id="${c.id}">Выдать</button>`;
+  else if (sel && loc) action = `<button class="btn small primary" data-act="fetch" data-id="${c.id}">Взять</button>`;
+  else action = `<div class="cl-act">${sel ? 'нет на полке' : 'обслужить'}</div>`;
+
+  return `<div class="client ${sel ? 'sel' : ''} ${c.type} ${handsForMe ? 'ready' : ''}">
+    <button class="cl-tap" data-act="pickClient" data-id="${c.id}">
+      <div class="cl-code">${c.code} ${tags}</div>
+      <div class="bar"><i class="${patiencePct < 30 ? 'danger' : patiencePct < 60 ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
+      ${sel && loc ? `<div class="cl-addr">${icon('pin')} ${esc(loc.address)}</div>` : ''}
+      ${sel && !loc && !handsForMe ? `<div class="cl-addr bad">Посылки нет на полке</div>` : ''}
+      ${myTask ? `<div class="cl-addr">${busy.kind === 'fetch' ? 'Иду за посылкой' : 'Отдаю заказ'} · <span data-live="clt:${c.id}">${busy.t}</span> мин</div>` : ''}
+    </button>
+    ${action}
+  </div>`;
+}
+
+/* ---------------- отчёт ---------------- */
+function viewReport(){
+  const r = S.report || { ds:S.dayStats, costs:0, avgSla:0, missedRate:0, p:E.premOf(S) };
+  const ds = r.ds;
+  const rows = [
+    ['Выручка за заказы', ds.revenue, 'good'],
+    ['Чаевые', ds.tips, 'good'],
+    ds.events ? ['События дня', ds.events, ds.events > 0 ? 'good' : 'bad'] : null,
+    ['Аренда', -ds.rent, 'bad'],
+    ['Зарплаты', -ds.payroll, 'bad'],
+    ['Коммуналка', -ds.util, 'bad'],
+    ['Штрафы', -ds.fines, 'bad'],
+    ds.loan ? ['Кредит', -ds.loan, 'bad'] : null,
+    ds.tax ? ['Налог', -ds.tax, 'bad'] : null,
+  ].filter(Boolean);
+
+  return `
+  ${viewHud()}
+  <main class="wrap">
+    <section class="card pad" data-r="rep">
+      <div class="kicker">Итоги дня</div>
+      <h2>День ${S.day}</h2>
+      <div class="report-grid">
+        <div class="rn"><b>${ds.issued}</b><span>выдано</span></div>
+        <div class="rn"><b class="${ds.missed ? 'bad' : ''}">${ds.missed}</b><span>упущено</span></div>
+        <div class="rn"><b>${Math.round(r.avgSla) || 0} мин</b><span>средняя выдача</span></div>
+        <div class="rn"><b>${S.nps.toFixed(2)}</b><span>NPS</span></div>
+      </div>
+      <div class="pnl">${rows.map(([label, val, cls]) => `
+        <div class="pnl-row"><span>${label}</span><b class="${val === 0 ? 'muted' : cls}">${val === 0 ? '0 ₽' : (val > 0 ? '+' : '') + fmt(val) + ' ₽'}</b></div>`).join('')}
+        <div class="pnl-row total"><span>Итого за день</span><b class="${ds.net >= 0 ? 'good' : 'bad'}">${ds.net > 0 ? '+' : ''}${fmt(ds.net)} ₽</b></div>
+      </div>
+      ${ds.onPrepay ? `<div class="muted small" style="margin-bottom:6px">${icon('manager')} ${ds.onPrepay} сотрудник(ов) работают за счёт аванса — зарплата за них не списывалась.</div>` : ''}
+      <div class="muted small">${reportAdvice(r)}</div>
+    </section>
+
+    ${S.over ? `<section class="card pad gameover">
+        <h2 class="bad">Бизнес закрыт</h2>
+        <p>${S.overReason === 'bankrupt' ? 'Три дня подряд касса уходила в минус. Поставщик отключил поставки, аренда не прощена.' : 'Вы не справились с обязательствами.'}</p>
+        <p class="muted small">Прожито дней: ${S.day}. Выдано заказов: ${S.history.reduce((a,h)=>a+h.issued,0)}. Финальный уровень: ${S.lvl}.</p>
+        <button class="btn primary big" data-act="restart">Начать заново</button>
+      </section>`
+    : `<div class="sticky-cta">
+        <div class="muted small">${hintText()}</div>
+        <button class="btn primary big" data-act="nextDay">Следующий день ${icon('chevron')}</button>
+      </div>`}
+  </main>`;
+}
+
+function reportAdvice(r){
+  const ds = r.ds;
+  const tips = [];
+  if (ds.missed > 3) tips.push('Много упущенных клиентов — не хватает рук в пиковых часах. Наймите продавца.');
+  if (r.avgSla > E.contractOf(S).sla && ds.issued) tips.push('Средняя выдача дольше нормы: помогает сканер, стойка и порядок на полках.');
+  if (E.compliance(S) < 1) tips.push('Брендбук закрыт не полностью — это минус к выплате за каждый заказ.');
+  if (ds.net < 0) tips.push('День убыточный: сократите постоянные расходы или поднимите поток.');
+  if (!tips.length) tips.push('День ровный. Так и держать.');
+  return tips.join(' ');
+}
+
+/* ---------------- события ---------------- */
+function viewEvent(){
+  const ev = S.event;
+  return `
+  <div class="modal-bg">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-ico">${icon('alert')}</div>
+        <div>
+          <div class="kicker">Событие</div>
+          <h2>${esc(ev.title)}</h2>
+        </div>
+      </div>
+      <p class="muted">${esc(ev.text)}</p>
+      <div class="opts">
+        ${ev.options.map((o, i) => `<button class="btn opt" data-act="eventOpt" data-i="${i}"><span class="opt-t">${esc(o.text)}</span><span class="opt-go">${icon('chevron')}</span></button>`).join('')}
+      </div>
+      <div class="muted small ico-inline">${icon('clock')} ${Math.max(0, Math.round(ev.endsAt - S.minutes))} мин на решение</div>
+    </div>
+  </div>`;
+}
+
+function viewInstall(){
+  const hints = installHints();
+  return `
+  <div class="modal-bg" data-act="closeInstall">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-ico">${icon('box')}</div>
+        <div>
+          <div class="kicker">Установка</div>
+          <h2>ПВЗ-Сити на телефоне</h2>
+        </div>
+      </div>
+      <p class="muted">Игра ставится как обычное приложение: своя иконка, полный экран, работает без интернета. Прогресс хранится на устройстве.</p>
+      <ol class="steps">
+        ${hints.map(h => `<li>${h}</li>`).join('')}
+      </ol>
+      <div class="opts">
+        ${U.installEvt ? `<button class="btn primary opt" data-act="installApp"><span class="opt-t">Установить сейчас</span><span class="opt-go">${icon('chevron')}</span></button>` : ''}
+        <button class="btn opt" data-act="closeInstall"><span class="opt-t">Понятно</span><span class="opt-go">${icon('chevron')}</span></button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------------- меню ---------------- */
+function viewMenu(){
+  return `
+  <div class="modal-bg" data-act="closeMenu">
+    <div class="modal" onclick="void 0">
+      <div class="kicker">Меню</div>
+      <h2>ПВЗ-Сити</h2>
+      <p class="muted small">Версия 0.1 · Срез 0 + ядро глубины. Прогресс сохраняется автоматически.</p>
+      <div class="opts">
+        <button class="btn opt" data-act="closeMenu"><span class="opt-t">Продолжить</span><span class="opt-go">${icon('chevron')}</span></button>
+        <button class="btn opt" data-act="help"><span class="opt-t">Как играть</span><span class="opt-go">${icon('chevron')}</span></button>
+        ${U.installEvt ? `<button class="btn opt" data-act="installApp"><span class="opt-t">Установить приложение</span><span class="opt-go">${icon('chevron')}</span></button>` : ''}
+        ${!U.installEvt && !U.installed ? `<button class="btn opt" data-act="installHelp"><span class="opt-t">Как установить на телефон</span><span class="opt-go">${icon('chevron')}</span></button>` : ''}
+        <button class="btn opt" data-act="toggleSound"><span class="opt-t">Звук: ${soundOn ? 'вкл' : 'выкл'}</span><span class="opt-go">${icon('chevron')}</span></button>
+        <button class="btn opt" data-act="hardReset"><span class="opt-t">Начать новую игру</span><span class="opt-go">${icon('chevron')}</span></button>
+      </div>
+      <div class="menu-state">
+        <span class="chip">${icon(U.installed ? 'check' : 'box')} ${U.installed ? 'установлено' : 'в браузере'}</span>
+        <span class="chip ${U.online ? '' : 'warn'}">${icon(U.online ? 'activity' : 'alert')} ${U.online ? 'в сети' : 'офлайн'}</span>
+        <span class="chip">${icon('archive')} ${U.swReady ? 'офлайн-кеш готов' : 'кеш не активен'}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function viewHelp(){
+  return `
+  <div class="modal-bg" data-act="closeHelp">
+    <div class="modal">
+      <div class="kicker">Правила</div>
+      <h2>Как играть</h2>
+      <div class="help">
+        <p><b>1. Утро.</b> Смотрите прогноз потока, покупайте оборудование, нанимайте людей. «Начать день» — решения приняты.</p>
+        <p><b>2. Планировка.</b> Вкладка «Планировка» — расставьте стойку, стеллажи и примерочную по сетке. Чем дальше стеллаж от стойки, тем дольше вы идёте за заказом. Без стойки и стеллажа день не начнётся.</p>
+        <p><b>3. Машина.</b> Две поставки в день — большие, но редкие. Принимайте посылки (они попадают в зону приёмки) и раскладывайте по ячейкам: хрупкое — в «Хрупкое», крупное — в КГТ.</p>
+        <p><b>3. Клиенты.</b> Клиент показывает код. Тапните на него — система подскажет адрес: «Стеллаж Б · ячейка 7». Жмите «Взять», дойдите до полки (ячейка подсвечена), затем «Выдать» — и деньги в кассе.</p>
+        <p><b>4. Время — деньги.</b> Пока вы обслуживаете одного, очередь растёт. Нанимайте продавца и грузчика, чтобы не разрываться.</p>
+        <p><b>5. Найм.</b> Сотрудник стоит недешево: оформление плюс аванс зарплаты за 10 дней вперёд. Уволите раньше — аванс не вернут. Поэтому первый наём — это рубеж, к которому вы копите.</p>
+        <p><b>6. Вечер.</b> Отчёт покажет прибыль, KPI и усталость. Раз в неделю — аудит контракта: не выполнили KPI — понижение.</p>
+      </div>
+      <div class="opts"><button class="btn primary" data-act="closeHelp">Понятно</button></div>
+    </div>
+  </div>`;
+}
+
+/* ---------------- подсказки ---------------- */
+function hintText(){
+  if (S.phase === 'plan'){
+    const probs = E.layoutProblems(S);
+    if (probs.length) return probs.join(' · ');
+    if (!S.shelves.length) return 'Сначала купите стеллаж — без него посылки некуда класть.';
+    if (!S.owned.counter) return 'Стойка выдачи ускоряет поиск заказа. Брендбук требует её тоже.';
+    if (!S.staff.length) return 'Вы работаете один. Первый сотрудник стоит как оформление + аванс за 10 дней — копите.';
+    return 'Проверьте прогноз и закупки, затем начинайте день.';
+  }
+  if (S.phase === 'day'){
+    const truck = S.trucks.find(t => t.arrived && t.left > 0);
+    if (S.player.busy) return 'Вы обслуживаете клиента — подождите или прервите.';
+    if (truck) return 'Машина ждёт: принимайте посылки, потом раскладывайте.';
+    if (S.receiving.length) return 'Выберите посылку и свободную ячейку — или «Разложить всё».';
+    if (S.hands) return 'Посылка в руках: отдайте клиенту кнопкой «Выдать».';
+    if (S.clients.length) return 'Тапните клиента — система покажет, где лежит его посылка.';
+    return 'Спокойно. Смотрите на ленту событий.';
+  }
+  return '';
+}
+
+/* ---------------- действия ---------------- */
+async function act(type, d){
+  switch(type){
+    case 'pickBrand': U.sel.brand = d.id; beep(600,0.05); break;
+    case 'pickPremise': U.sel.premise = d.id; beep(600,0.05); break;
+    case 'startGame': newGame(); break;
+    case 'tab': U.tab = d.id; break;
+    case 'buy': {
+      const r = E.buy(S, d.id);
+      if (r.ok){
+        beep(520,0.06,'triangle');
+        const it = E.ITEMS[d.id];
+        if (it && it.physical) toast(`${it.name}: расставьте на вкладке «Планировка»`, 'good');
+        else toast('Куплено');
+      } else { toast(r.msg || 'Нельзя', 'bad'); beep(180,0.08,'square'); }
+      break;
+    }
+    case 'hire': {
+      const r = E.hire(S, d.role);
+      if (r.ok){ toast('Нанят сотрудник'); beep(660,0.08,'triangle'); } else { toast(r.msg || 'Нельзя', 'bad'); beep(180,0.08,'square'); }
+      break;
+    }
+    case 'installApp': {
+      const ev = U.installEvt;
+      if (!ev){ U.installHelp = true; break; }
+      U.installEvt = null;
+      U.installHelp = false;
+      try {
+        ev.prompt();
+        const choice = await (ev.userChoice || Promise.resolve({ outcome: 'dismissed' }));
+        if (choice && choice.outcome === 'accepted') toast('Устанавливаем…', 'good');
+        else toast('Можно установить позже из меню', 'info');
+      } catch(e){ toast('Браузер не дал установить — см. инструкцию', 'bad'); U.installHelp = true; }
+      break;
+    }
+    case 'installHelp': U.installHelp = true; break;
+    case 'closeInstall': U.installHelp = false; break;
+    case 'fire': { const r = E.fire(S, d.id); if (!r.ok) toast(r.msg, 'bad'); break; }
+    case 'loan': { const r = E.takeLoan(S, 20000); if (!r.ok) toast(r.msg, 'bad'); else beep(400,0.1,'sawtooth'); break; }
+    case 'policy': {
+      const k = d.k, v = d.v;
+      if (k === 'autoReturn') S.policies[k] = v === '1'; else S.policies[k] = v;
+      break;
+    }
+    case 'startDay': {
+      const probs = E.layoutProblems(S);
+      if (probs.length){ toast(probs[0], 'bad'); break; }
+      E.startDay(S); U.screen = 'day'; save(); beep(440,0.1,'triangle');
+      break;
+    }
+    case 'nextDay': E.nextDay(S); U.screen = 'plan'; U.selClient = null; U.selBox = null; save(); break;
+    case 'restart': safeDel('pvz_save_v1'); S = null; U.screen = 'start'; break;
+    case 'speed': S.speed = +d.v; break;
+    case 'accept': {
+      const r = E.acceptBox(S);
+      if (!r.ok) toast(r.msg, 'bad'); else beep(700,0.04,'square');
+      break;
+    }
+    case 'acceptAll': {
+      let n = 0, r;
+      while ((r = E.acceptBox(S, true)).ok){ n++; if (n > 20) break; }
+      if (n) { toast(`Принято ${n} посылок`, 'good'); beep(700,0.05,'square'); }
+      else toast(r.msg || 'Нечего принимать', 'bad');
+      break;
+    }
+    case 'pickItem': U.selItem = U.selItem === +d.i ? null : +d.i; U.moveId = null; break;
+    case 'fixTap': {
+      U.moveId = U.moveId === d.id ? null : d.id;
+      U.selItem = null;
+      break;
+    }
+    case 'roomCell': {
+      if (U.moveId){
+        const r = E.moveFixture(S, U.moveId, +d.x, +d.y);
+        if (r.ok){ beep(500,0.05,'square'); U.moveId = null; }
+        else toast(r.msg || 'Здесь занято', 'bad');
+        break;
+      }
+      if (U.selItem == null){ toast('Сначала выберите предмет из списка'); break; }
+      const itemId = S.unplaced[U.selItem];
+      const r = E.placeFixture(S, itemId, +d.x, +d.y);
+      if (r.ok){ beep(520,0.05,'square'); if (!S.unplaced.length) U.selItem = null; else U.selItem = Math.min(U.selItem, S.unplaced.length - 1); }
+      else toast(r.msg || 'Не помещается', 'bad');
+      break;
+    }
+    case 'removeFix': {
+      const r = E.removeFixture(S, d.id);
+      if (r.ok) beep(420,0.05,'square'); else toast(r.msg, 'bad');
+      break;
+    }
+    case 'autoLayout': {
+      const r = E.autoLayout(S);
+      toast(r.placed ? `Расставлено: ${r.placed}` : 'Нечего расставлять', r.placed ? 'good' : 'bad');
+      break;
+    }
+    case 'pickBox': U.selBox = U.selBox === d.id ? null : d.id; U.selClient = null; break;
+    case 'placeAll': {
+      let n = 0;
+      for (const pkg of [...S.receiving]){
+        let done = false;
+        for (const sh of S.shelves){
+          if (sh.kind !== E.zoneOf(pkg) && sh.kind !== 'std') continue;
+          const idx = sh.cells.indexOf(null);
+          if (idx >= 0){ const r = E.placeBox(S, pkg.id, sh.id, idx); if (r.ok){ n++; done = true; } break; }
+        }
+        if (!done) break;
+      }
+      if (n){ toast(`Разложено ${n}`, 'good'); beep(520,0.05,'square'); } else toast('Нет свободных ячеек', 'bad');
+      break;
+    }
+    case 'cell': {
+      const shelfId = d.shelf, idx = +d.idx;
+      if (U.selBox){
+        const r = E.placeBox(S, U.selBox, shelfId, idx);
+        if (r.ok){ U.selBox = null; beep(520,0.05,'square'); } else toast(r.msg, 'bad');
+      } else {
+        const sh = S.shelves.find(x => x.id === shelfId);
+        const cell = sh && sh.cells[idx];
+        if (cell) toast(`${E.cellAddress(S, shelfId, idx)} · ${cell.code} · ${cell.size}${cell.fragile ? ' · хрупкое' : ''}`);
+        else toast(`${E.cellAddress(S, shelfId, idx)} — пусто`);
+      }
+      break;
+    }
+    case 'fetch': {
+      const r = E.startFetch(S, d.id);
+      if (r.ok){ toast(`Иду за посылкой: ${r.address}`, 'good'); beep(620,0.05,'square'); }
+      else { toast(r.msg || 'Нельзя', 'bad'); beep(180,0.09,'square'); }
+      break;
+    }
+    case 'give': {
+      const r = E.giveToClient(S, d.id);
+      if (r.ok) beep(760,0.06,'triangle');
+      else toast(r.msg || 'Ошибка', 'bad');
+      break;
+    }
+    case 'returnHands': {
+      const r = E.returnHands(S);
+      if (!r.ok) toast(r.msg, 'bad');
+      break;
+    }
+    case 'pickClient': {
+      U.selClient = U.selClient === d.id ? null : d.id;
+      U.selBox = null;
+      beep(660,0.04,'sine');
+      if (U.selClient && window.innerWidth >= 900) setTimeout(() => {
+        const cell = document.querySelector('.cell.located');
+        if (cell && cell.scrollIntoView) cell.scrollIntoView({ block:'center', behavior:'smooth' });
+      }, 60);
+      break;
+    }
+    case 'consult': { const r = E.consult(S, d.id); if (!r.ok) toast(r.msg, 'bad'); break; }
+    case 'eventOpt': { E.resolveEvent(S, +d.i); beep(500,0.08,'triangle'); break; }
+    case 'endDayNow': E.endDay(S); U.screen = 'report'; save(); break;
+    case 'openMenu': U.menu = !U.menu; break;
+    case 'help': U.help = true; U.menu = false; break;
+    case 'closeHelp': U.help = false; break;
+    case 'closeMenu': U.menu = false; break;
+    case 'toggleSound': soundOn = !soundOn; U.menu = true; toast(soundOn ? 'Звук включён' : 'Звук выключен'); break;
+    case 'hardReset': {
+      safeDel('pvz_save_v1');
+      S = null; U.screen = 'start'; U.menu = false;
+      break;
+    }
+  }
+  render();
+}
+
+/* Действия вешаем на pointerup: DOM перерисовывается каждые ~110 мс,
+   и обычный click может «потеряться», если кнопку успели перерисовать. */
+let press = null;
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest('[data-act]');
+  press = el ? { act: el.dataset.act, data: Object.assign({}, el.dataset), x: e.clientX, y: e.clientY } : null;
+}, { passive:true });
+
+document.addEventListener('pointerup', e => {
+  if (!press) return;
+  const dx = Math.abs(e.clientX - press.x), dy = Math.abs(e.clientY - press.y);
+  const p = press; press = null;
+  if (dx < 14 && dy < 14){ try { act(p.act, p.data); } catch(err){ console.error(err); } }
+}, { passive:true });
+
+document.addEventListener('pointercancel', () => { press = null; });
+
+/* доступность: клавиатура */
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target.closest && e.target.closest('[data-act]');
+  if (!el) return;
+  e.preventDefault();
+  act(el.dataset.act, Object.assign({}, el.dataset));
+});
+
+document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+
+/* автосейв раз в 20 секунд */
+setInterval(save, 20000);
+
+window.__pvzBooted = true;
+boot();
+})();
+</script>
+</body>
+</html>
