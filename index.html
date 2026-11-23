@@ -1378,6 +1378,20 @@ h1,h2,h3{ letter-spacing:-.022em }
   .start-foot .btn{ width:100%; min-height:50px }
 }
 
+/* ---- очень узкие экраны (320 px) ---- */
+.tiles{ min-width:0 }
+.tiles > *{ min-width:0 }
+@media (max-width:360px){
+  .tile{ padding:8px 9px; border-radius:12px }
+  .tile .t-val{ font-size:18px }
+  .tile .t-lbl{ font-size:8.5px; letter-spacing:.03em; gap:4px }
+  .tile .t-lbl .i{ width:11px; height:11px }
+  .tiles{ gap:6px }
+  .wrap{ padding-left:10px; padding-right:10px }
+  .kpi-row{ font-size:12.5px }
+  .hero h2, .brief-day{ font-size:26px }
+}
+
 </style>
 </head>
 <body>
