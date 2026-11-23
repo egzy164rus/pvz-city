@@ -171,7 +171,10 @@ node test/pwa.mjs
 
 Репозиторий инициализирован, первый коммит сделан. `.github/workflows/deploy.yml` при push в `main`
 собирает `index.html`/`game.html` и публикует сайт через GitHub Actions.
-Пошагово (создать репозиторий, подключить SSH-ключ из `deploy-key/`, включить Pages) — [`GITHUB.md`](GITHUB.md).
+Пошагово, со ссылками на страницы GitHub — [`GITHUB.md`](GITHUB.md).
+Быстрый путь: создать пустой репозиторий → добавить ключ из `deploy-key/pvz_city.pub` в
+**Settings → Deploy keys** (✅ Allow write access) → `./setup-github.sh <логин>` →
+**Settings → Pages: Source = GitHub Actions**.
 
 ## Публикация
 
