@@ -5,7 +5,9 @@ import * as E from './engine.js';
 import { icon, itemIcon, roleIcon } from './icons.js';
 
 const U = {
-  screen: 'start',
+  screen: 'splash',
+  saved: null,            // сохранение, ожидающее «Продолжить»
+  splash: null,           // { t0, dur } — таймер загрузки
   tab: 'shop',
   sel: { brand: 'plus', premise: 'spal' },
   selClient: null,
@@ -65,15 +67,47 @@ function safeGet(k){ try { return localStorage.getItem(k); } catch(e){ return nu
 function safeDel(k){ try { localStorage.removeItem(k); } catch(e){} }
 
 export function boot(){
-  let saved = null;
-  try { saved = localStorage.getItem('pvz_save_v1'); } catch(e){ saved = null; }   // iframe без same-origin
-  if (saved){
-    const s = E.deserialize(saved);
-    if (s){ S = s; U.screen = s.phase === 'report' ? 'report' : s.phase === 'day' ? 'day' : 'plan'; }
+  let raw = null;
+  try { raw = localStorage.getItem('pvz_save_v1'); } catch(e){ raw = null; }   // iframe без same-origin
+  if (raw){
+    const s = E.deserialize(raw);
+    if (s) U.saved = s;
   }
+  // сначала загрузка, потом приветствие — в игру попадаем только по кнопке
+  U.screen = 'splash';
+  U.splash = { t0: performance.now(), dur: 2100 };
   applyAccent();
   initPwa();
   loop(performance.now());
+}
+
+/* ---------------- экран загрузки ---------------- */
+const SPLASH_STEPS = [
+  { at: 0.00, text: 'Проверяем торговый зал' },
+  { at: 0.26, text: 'Считаем спрос на сегодня' },
+  { at: 0.52, text: 'Подключаем терминал выдачи' },
+  { at: 0.76, text: 'Раскладываем посылки по полкам' },
+  { at: 0.95, text: 'Готово' },
+];
+
+function tickSplash(ts){
+  const sp = U.splash;
+  if (!sp) return;
+  const p = Math.min(1, Math.max(0, (ts - sp.t0) / sp.dur));
+  const eased = 1 - Math.pow(1 - p, 1.8);
+  const el = document.querySelector('.splash');
+  if (el){
+    const bar = el.querySelector('.splash-bar > i');
+    if (bar) bar.style.width = (eased * 100).toFixed(1) + '%';
+    const pctEl = el.querySelector('[data-live="splash-pct"]');
+    if (pctEl){ const v = Math.round(eased * 100) + '%'; if (pctEl.textContent !== v) pctEl.textContent = v; }
+    const stepEl = el.querySelector('[data-live="splash-step"]');
+    if (stepEl){
+      const st = SPLASH_STEPS.filter(x => p >= x.at).pop();
+      if (stepEl.textContent !== st.text) stepEl.textContent = st.text;
+    }
+  }
+  if (p >= 1){ U.splash = null; U.screen = 'welcome'; U.lastRender = 0; render(); }
 }
 
 /* ---------------- PWA: установка и офлайн ---------------- */
@@ -177,6 +211,9 @@ function loop(ts){
     }
   }
 
+  if (U.screen === 'splash') tickSplash(ts);
+  else if (U.splash){ U.splash = null; }
+
   if (ts - U.lastRender > 110){
     U.lastRender = ts;
     render();
@@ -194,11 +231,15 @@ function render(){
   const app = $app();
   if (!app) return;
 
-  const shell = !S || U.screen === 'start' ? 'start'
+  const shell = U.screen === 'splash' ? 'splash'
+    : U.screen === 'welcome' ? 'welcome'
+    : !S || U.screen === 'start' ? 'start'
     : U.screen === 'report' ? 'report'
     : U.screen === 'plan' ? 'plan'
     : 'day';
-  const body = shell === 'start' ? viewStart()
+  const body = shell === 'splash' ? viewSplash()
+    : shell === 'welcome' ? viewWelcome()
+    : shell === 'start' ? viewStart()
     : shell === 'report' ? viewReport()
     : shell === 'plan' ? viewPlan()
     : viewDay();
@@ -332,6 +373,89 @@ function liveUpdate(){
       if (el.style.gridRow !== row) el.style.gridRow = row;
     });
   }
+}
+
+/* ---------------- загрузка ---------------- */
+function logoMark(cls){
+  return `<div class="splash-mark ${cls || ''}">${icon('box')}</div>`;
+}
+
+const SPLASH_TIPS = [
+  'Стеллаж у стойки — быстрая выдача, но меньше склада.',
+  'Сканер ШК экономит 4 минуты на каждом заказе.',
+  'Клиент приходит только под посылку: следите за складом.',
+  'Вечерняя смена дешевле полного дня на 38%.',
+  'Возвраты уезжают в 19:00 — успейте принять.',
+  'Аудит контракта — каждые 7 дней: держите KPI.',
+  'Кофемашина добавляет 8% к потоку клиентов.',
+];
+let splashTip = null;
+
+function viewSplash(){
+  if (!splashTip) splashTip = SPLASH_TIPS[Math.floor(Math.random() * SPLASH_TIPS.length)];
+  return `
+  <div class="splash" data-r="splash" data-act="skipSplash">
+    <div class="splash-glow"></div>
+    <div class="splash-brand">
+      ${logoMark()}
+      <h1 class="splash-title">ПВЗ-Сити</h1>
+      <div class="splash-sub">симулятор пункта выдачи</div>
+    </div>
+    <div class="splash-progress">
+      <div class="splash-bar"><i data-live="splash-bar"></i></div>
+      <div class="splash-step">
+        <span data-live="splash-step">Проверяем торговый зал</span>
+        <b data-live="splash-pct">0%</b>
+      </div>
+    </div>
+    <div class="splash-tip">${icon('sparkle')} ${splashTip}</div>
+    <div class="splash-foot">${U.saved ? 'Сохранение найдено' : 'Новый пункт'} · работает без интернета</div>
+  </div>`;
+}
+
+/* ---------------- приветствие ---------------- */
+function viewWelcome(){
+  const sv = U.saved;
+  const feats = [
+    ['truck', 'Поставки дважды в день'],
+    ['layout', 'Планировка зала руками'],
+    ['users', 'Команда и смены'],
+    ['award', 'Контракт и недельный аудит'],
+  ].map(([ic, t]) => `<div class="wf">${icon(ic)}<span>${t}</span></div>`).join('');
+
+  return `
+  <div class="welcome" data-r="welcome">
+    <div class="welcome-glow"></div>
+    <div class="welcome-hero">
+      ${logoMark('small')}
+      <h1 class="splash-title">ПВЗ-Сити</h1>
+      <div class="splash-sub">симулятор пункта выдачи</div>
+      <p class="welcome-tag">${sv
+        ? 'Ваш пункт ждёт. Касса, очередь и команда — всё на месте.'
+        : 'Вы открываете свой пункт. Денег мало, команды нет, а клиенты уже идут.'}</p>
+    </div>
+
+    <div class="welcome-actions">
+      ${sv ? `<button class="btn primary hero welcome-save" data-act="welcomeContinue">
+          <span class="wc-main">${icon('play')} Продолжить · День ${sv.day}</span>
+          <span class="wc-sub">${esc(E.brandOf(sv).name)} · ${fmt(sv.money)} ₽ · ур. ${sv.lvl} · NPS ${sv.nps.toFixed(2)}</span>
+        </button>
+        ${U.newGameAsk
+          ? `<div class="welcome-confirm">
+              <div class="small">Прогресс «День ${sv.day}» будет стёрт безвозвратно.</div>
+              <div class="wc-row">
+                <button class="btn bad" data-act="welcomeNewConfirm">Стереть и начать</button>
+                <button class="btn ghost" data-act="welcomeNewCancel">Отмена</button>
+              </div>
+            </div>`
+          : `<button class="btn ghost hero" data-act="welcomeNewAsk">Новая игра</button>`}`
+      : `<button class="btn primary hero" data-act="welcomeNew">Начать игру ${icon('chevron')}</button>`}
+      ${U.installEvt ? `<button class="btn ghost" data-act="installApp">${icon('download')} Установить приложение</button>` : ''}
+    </div>
+
+    <div class="welcome-feats">${feats}</div>
+    <div class="welcome-foot">${sv ? 'Прогресс сохраняется автоматически' : 'Стартовый капитал 60 000 ₽ · без регистрации'}</div>
+  </div>`;
 }
 
 /* ---------------- онбординг ---------------- */
@@ -1273,6 +1397,32 @@ async function act(type, d){
       if (!c) { toast('Некого обслуживать', 'bad'); break; }
       if (c.returnItem) act('takeReturn', { id: c.id });
       else { U.selClient = c.id; U.selBox = null; beep(680,0.05); }
+      break;
+    }
+    case 'skipSplash': {
+      U.splash = null; U.screen = 'welcome'; render();
+      break;
+    }
+    case 'welcomeContinue': {
+      if (!U.saved) break;
+      S = U.saved; U.saved = null;
+      U.screen = S.phase === 'report' ? 'report' : S.phase === 'day' ? 'day' : 'plan';
+      applyAccent(); U.lastRender = 0; render();
+      toast(`Продолжаем · День ${S.day}`, 'good');
+      break;
+    }
+    case 'welcomeNewAsk': { U.newGameAsk = true; render(); break; }
+    case 'welcomeNewCancel': { U.newGameAsk = false; render(); break; }
+    case 'welcomeNew': {
+      U.saved = null; S = null; U.newGameAsk = false; U.screen = 'start';
+      U.lastRender = 0; render();
+      break;
+    }
+    case 'welcomeNewConfirm': {
+      safeDel('pvz_save_v1');
+      U.saved = null; S = null; U.newGameAsk = false; U.screen = 'start';
+      U.lastRender = 0; render();
+      toast('Прогресс удалён — новый пункт', 'info');
       break;
     }
     case 'fire': { const r = E.fire(S, d.id); if (!r.ok) toast(r.msg, 'bad'); break; }

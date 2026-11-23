@@ -27,7 +27,17 @@ const check = (name, cond, info='') => {
   if (!cond) fails++;
 };
 
-await sleep(200);
+await sleep(150);
+console.log('0. Загрузка и приветствие');
+check('сплэш показан', !!q('.splash'));
+check('шкала загрузки есть', !!q('.splash-bar i'));
+clickAct('skipSplash');
+await sleep(120);
+check('приветствие отрисовано', !!q('.welcome'));
+check('кнопка «Начать игру»', !!q('[data-act="welcomeNew"]'));
+clickAct('welcomeNew');
+await sleep(150);
+
 console.log('1. Онбординг');
 check('стартовый экран отрисован', !!q('.start'));
 check('3 бренда', qa('[data-act="pickBrand"]').length === 3);

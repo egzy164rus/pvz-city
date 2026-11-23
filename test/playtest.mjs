@@ -19,6 +19,9 @@ const tap = async sel => page.evaluate(s => {
   return true;
 }, sel);
 
+await page.waitForSelector('[data-act="welcomeNew"]', { timeout: 8000 });
+await tap('[data-act="welcomeNew"]');
+await page.waitForTimeout(250);
 await tap('[data-act="pickBrand"][data-id="plus"]');
 await tap('[data-act="pickPremise"][data-id="spal"]');
 await tap('[data-act="startGame"]');

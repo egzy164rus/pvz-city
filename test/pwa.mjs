@@ -49,9 +49,16 @@ const cached = await page.evaluate(async () => {
 check('оболочка в кеше', cached.count >= 5 && cached.hasIndex, `${cached.names.join(',')} · ${cached.count} файлов`);
 
 console.log('3. Экран запуска');
-check('стартовый экран отрисован', !!(await page.$('.logo')),
+check('сплэш с логотипом показан', !!(await page.$('.splash-mark, .splash')),
 );
-const feats = await page.evaluate(() => document.querySelectorAll('.start-feats .feat').length);
+await page.waitForSelector('[data-act="welcomeNew"]', { timeout: 8000 });
+const welcome = await page.evaluate(() => ({
+  screen: !!document.querySelector('.welcome'),
+  title: (document.querySelector('.splash-title') || {}).textContent || '',
+}));
+check('экран приветствия отрисован', welcome.screen);
+check('название игры на месте', welcome.title.trim() === 'ПВЗ-Сити', welcome.title.trim());
+const feats = await page.evaluate(() => document.querySelectorAll('.welcome-feats .wf').length);
 check('стартовые фишки на месте', feats >= 3, feats + ' шт.');
 
 console.log('4. Меню и статус установки');
@@ -62,6 +69,9 @@ const tap = async sel => page.evaluate(s => {
   el.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
   return true;
 }, sel);
+await page.waitForSelector('[data-act="welcomeNew"]', { timeout: 8000 });
+await tap('[data-act="welcomeNew"]');
+await page.waitForTimeout(250);
 await tap('[data-act="pickBrand"][data-id="gorod"]');
 await tap('[data-act="pickPremise"][data-id="spal"]');
 await tap('[data-act="startGame"]');
@@ -81,9 +91,10 @@ check('пункт установки есть', menu.install);
 console.log('5. Офлайн-запуск');
 await ctx.setOffline(true);
 await page.reload({ waitUntil: 'domcontentloaded' });
-await page.waitForTimeout(900);
+await page.waitForSelector('[data-act="welcomeNew"], .welcome, .hud', { timeout: 8000 });
+await page.waitForTimeout(300);
 const offline = await page.evaluate(() => ({
-  booted: !!document.querySelector('.logo') || !!document.querySelector('.hud'),
+  booted: !!document.querySelector('.welcome') || !!document.querySelector('.hud') || !!document.querySelector('.splash'),
   online: navigator.onLine,
 }));
 check('страница открылась без сети', offline.booted);

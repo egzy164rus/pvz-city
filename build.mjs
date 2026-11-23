@@ -44,7 +44,20 @@ parts.push(css);
 parts.push('</style>');
 parts.push('</head>');
 parts.push('<body>');
-parts.push('<div id="app"><div class="boot">Загрузка ПВЗ-Сити…<br><span class="muted small">Если этот текст не исчез — обновите страницу.</span></div></div>');
+// первый кадр рисуем прямо в HTML: сплэш виден ещё до разбора скрипта
+parts.push(`<div id="app"><div class="shell" data-shell="splash"><div class="splash">
+  <div class="splash-glow"></div>
+  <div class="splash-brand">
+    <div class="splash-mark"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.4 7.6 12 3l8.6 4.6v8.8L12 21l-8.6-4.6z"/><path d="M3.4 7.6 12 12.2l8.6-4.6M12 12.2V21"/></svg></div>
+    <h1 class="splash-title">ПВЗ-Сити</h1>
+    <div class="splash-sub">симулятор пункта выдачи</div>
+  </div>
+  <div class="splash-progress">
+    <div class="splash-bar"><i class="boot-bar"></i></div>
+    <div class="splash-step"><span>Загружаем игру</span><b>…</b></div>
+  </div>
+  <div class="splash-foot">работает без интернета</div>
+</div></div></div>`);
 parts.push('<noscript><div style="padding:24px;color:#e9eefc;font:16px sans-serif">Для игры нужен включённый JavaScript.</div></noscript>');
 parts.push('<script>');
 parts.push('(function(){');

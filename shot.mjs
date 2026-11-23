@@ -11,9 +11,14 @@ async function shoot(name, width, height, isMobile){
   page.on('console', m => { if (m.type()==='error') console.log('CONSOLE ERROR:', m.text()); });
   await page.goto(url);
   await page.waitForTimeout(400);
-  await page.screenshot({ path:`shots/${name}-1start.png` });
+  await page.screenshot({ path:`shots/${name}-0splash.png` });
 
   const tap = async (sel) => { await page.evaluate(s => { const el = document.querySelector(s); if (el) el.dispatchEvent(new MouseEvent('pointerdown',{bubbles:true})); if (el) el.dispatchEvent(new MouseEvent('pointerup',{bubbles:true})); }, sel); };
+  await page.waitForSelector('[data-act="welcomeNew"]', { timeout: 8000 });
+  await page.waitForTimeout(400);
+  await page.screenshot({ path:`shots/${name}-1start.png` });
+  await tap('[data-act="welcomeNew"]');
+  await page.waitForTimeout(250);
   await tap('[data-act="pickBrand"][data-id="gorod"]');
   await tap('[data-act="pickPremise"][data-id="spal"]');
   await tap('[data-act="startGame"]');

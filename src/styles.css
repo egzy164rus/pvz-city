@@ -852,3 +852,166 @@ h2.sec{margin:26px 0 10px; font-size:12px; text-transform:uppercase; letter-spac
 
 .cl-left.warn{color:var(--warn)}
 .cl-left.bad{color:var(--bad)}
+
+/* ============================================================
+   Стартовый экран: загрузка и приветствие
+   ============================================================ */
+.splash, .welcome{
+  position:relative; min-height:100vh; min-height:100dvh;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:calc(20px + env(safe-area-inset-top)) 10px calc(20px + env(safe-area-inset-bottom));
+  text-align:center; overflow:hidden;
+  animation:screenIn .45s ease both;
+}
+@keyframes screenIn{ from{opacity:0; transform:translateY(10px) scale(.995)} to{opacity:1; transform:none} }
+
+.splash-glow, .welcome-glow{
+  position:absolute; left:50%; top:50%; width:min(620px, 132vw); aspect-ratio:1;
+  transform:translate(-50%,-62%); border-radius:50%; pointer-events:none;
+  background:radial-gradient(circle,
+      color-mix(in srgb, var(--accent) 40%, transparent) 0%,
+      color-mix(in srgb, var(--accent) 14%, transparent) 38%,
+      transparent 66%);
+  filter:blur(28px); opacity:.85; animation:glowPulse 5.2s ease-in-out infinite;
+}
+@keyframes glowPulse{ 0%,100%{opacity:.7; transform:translate(-50%,-62%) scale(1)} 50%{opacity:1; transform:translate(-50%,-62%) scale(1.07)} }
+
+.splash-brand, .welcome-hero{ position:relative; display:flex; flex-direction:column; align-items:center }
+
+.splash-mark{
+  position:relative; width:92px; height:92px; border-radius:28px; display:grid; place-items:center;
+  background:linear-gradient(150deg,
+      color-mix(in srgb, var(--accent) 88%, #ffffff 12%),
+      color-mix(in srgb, var(--accent2) 92%, #000 8%));
+  box-shadow:
+    0 26px 60px -22px color-mix(in srgb, var(--accent) 90%, transparent),
+    0 2px 0 rgba(255,255,255,.28) inset,
+    0 -20px 34px -24px #000 inset;
+  animation:markIn .7s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes markIn{ from{opacity:0; transform:scale(.86) translateY(8px)} to{opacity:1; transform:none} }
+.splash-mark .i{ width:44px; height:44px; color:#fff; stroke-width:1.6 }
+.splash-mark.small{ width:76px; height:76px; border-radius:23px }
+.splash-mark.small .i{ width:36px; height:36px }
+/* световой блик, проходящий по плитке, — «премиальная» загрузка */
+.splash-mark{ overflow:hidden; isolation:isolate }
+.splash-mark::after{
+  content:''; position:absolute; inset:-45%; pointer-events:none;
+  background:linear-gradient(112deg, transparent 40%, rgba(255,255,255,.62) 50%, transparent 60%);
+  transform:translateX(-70%); animation:markShine 2.9s cubic-bezier(.4,0,.6,1) infinite;
+}
+.splash-mark.small::after{ animation-duration:4.6s; opacity:.7 }
+@keyframes markShine{
+  0%{ transform:translateX(-75%) }
+  55%,100%{ transform:translateX(75%) }
+}
+@media (prefers-reduced-motion: reduce){
+  .splash-mark::after{ animation:none; opacity:.12 }
+  .splash-glow, .welcome-glow{ animation:none }
+  .splash, .welcome{ animation:none }
+}
+
+.splash-title{
+  margin:20px 0 0; font-size:38px; line-height:1.05; font-weight:850; letter-spacing:-.01em;
+  background:linear-gradient(180deg, #ffffff 18%, #a9c2ff 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.splash-sub{
+  margin-top:11px; font-size:10px; letter-spacing:.36em; text-transform:uppercase;
+  color:#7f91b2; padding-left:.36em;
+}
+
+.splash-progress{ position:relative; width:min(304px, 76vw); margin-top:34px }
+.splash-bar{ height:3px; border-radius:99px; background:rgba(255,255,255,.09); overflow:hidden }
+.splash-bar > i{
+  display:block; height:100%; width:0; border-radius:99px;
+  background:linear-gradient(90deg,
+      color-mix(in srgb, var(--accent) 55%, #fff 12%),
+      var(--accent));
+  box-shadow:0 0 16px color-mix(in srgb, var(--accent) 75%, transparent);
+  transition:width .2s linear;
+}
+.splash-step{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  margin-top:12px; font-size:11.5px; color:var(--muted);
+}
+.splash-step b{ color:#cdd9ef; font-variant-numeric:tabular-nums; font-weight:700 }
+
+.splash-tip{
+  position:relative; display:flex; align-items:flex-start; gap:7px; max-width:290px; margin-top:30px;
+  font-size:11.5px; line-height:1.55; color:#6f81a2; text-align:left;
+  animation:tipIn .6s ease both .25s;
+}
+.splash-tip .i{ width:14px; height:14px; color:color-mix(in srgb, var(--accent) 80%, #fff); flex-shrink:0; margin-top:1px }
+@keyframes tipIn{ from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
+@media (prefers-reduced-motion: reduce){ .splash-tip{ animation:none } }
+
+.splash-foot{
+  position:absolute; bottom:calc(18px + env(safe-area-inset-bottom));
+  font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:#465774;
+}
+
+/* ------------- приветствие ------------- */
+.welcome{ justify-content:center; gap:0 }
+.welcome-tag{ max-width:330px; margin:20px 0 0; font-size:14.5px; line-height:1.62; color:#b3c1da }
+.welcome-actions{
+  position:relative; display:flex; flex-direction:column; gap:10px;
+  width:min(360px, 100%); margin-top:26px;
+}
+.btn.hero{
+  min-height:56px; border-radius:17px; font-size:15px; font-weight:750; letter-spacing:.01em;
+  padding:0 20px; display:inline-flex; flex-direction:row; align-items:center; justify-content:center; gap:9px;
+}
+.btn.hero .i{ width:17px; height:17px }
+.btn.hero.welcome-save{ min-height:68px; flex-direction:column; gap:5px }
+.welcome-save .wc-main{ display:inline-flex; align-items:center; gap:8px; line-height:1.15 }
+.welcome-save .wc-sub{ font-size:11.5px; font-weight:600; opacity:.82; letter-spacing:.01em; line-height:1.2 }
+.welcome-save .wc-main{ display:inline-flex; align-items:center; gap:8px }
+.welcome-save .wc-sub{ font-size:11.5px; font-weight:600; opacity:.82; letter-spacing:.01em }
+
+.welcome-feats{
+  position:relative; display:grid; grid-template-columns:1fr 1fr; gap:8px;
+  width:min(360px, 100%); margin-top:22px;
+}
+.wf{
+  display:flex; align-items:center; gap:8px; padding:11px 12px; border-radius:13px;
+  background:rgba(255,255,255,.028); border:1px solid var(--line);
+  font-size:12px; color:#b9c6de; text-align:left; line-height:1.3;
+}
+.wf .i{ width:15px; height:15px; color:var(--accent); flex-shrink:0 }
+.welcome-foot{
+  position:relative; margin-top:20px; font-size:11px; color:#5b6d8d; letter-spacing:.02em;
+}
+@media (max-width:352px){
+}
+@media (max-width:400px){
+  .splash-title{ font-size:34px }
+  .splash-mark{ width:84px; height:84px; border-radius:25px }
+  .splash-mark .i{ width:40px; height:40px }
+  .welcome-feats{ grid-template-columns:1fr }
+}
+/* минимальный «первый кадр» до запуска скрипта */
+.boot-bar{ animation:bootFill 2.1s cubic-bezier(.25,.75,.25,1) forwards }
+@keyframes bootFill{ from{width:0} to{width:100%} }
+
+.welcome-confirm{
+  display:flex; flex-direction:column; gap:10px; padding:14px; border-radius:16px;
+  background:color-mix(in srgb, var(--bad) 10%, rgba(255,255,255,.02));
+  border:1px solid color-mix(in srgb, var(--bad) 34%, var(--line));
+  animation:tipIn .22s ease both;
+}
+.welcome-confirm .small{ line-height:1.45 }
+.wc-row{ display:flex; gap:8px }
+.wc-row .btn{ flex:1; min-height:46px; border-radius:13px; font-size:13px }
+/* низкие экраны (старые телефоны в ландшафте/малые): приветствие ужимается */
+@media (max-height:660px){
+  .splash-progress{ margin-top:26px }
+  .splash-tip{ margin-top:20px }
+  .welcome-tag{ font-size:13px; margin-top:14px }
+  .welcome-actions{ margin-top:16px }
+  .welcome-feats{ display:none }
+  .welcome-foot{ margin-top:14px }
+  .splash-mark{ width:76px; height:76px; border-radius:23px }
+  .splash-mark .i{ width:36px; height:36px }
+  .splash-title{ font-size:31px; margin-top:14px }
+}
