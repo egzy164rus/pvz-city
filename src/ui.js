@@ -995,26 +995,24 @@ function policyView(){
 function coachCard(){
   const truck = S.trucks.find(t => t.arrived && t.left > 0);
   const room = E.capacity(S).free - S.receiving.length;
-  const step = (n, t, sub, btn) => `<div class="coach">
-      <div class="co-n">${n}</div>
+  const step = (ico, cls, t, sub, btn) => `<div class="coach ${cls}">
+      <div class="co-n">${icon(ico)}</div>
       <div style="min-width:0"><div class="co-t">${t}</div><div class="co-s">${sub}</div></div>
       ${btn}
     </div>`;
 
   if (truck && truck.left > 0 && room > 0)
-    return step(1, `Машина привезла ${truck.left}`, `осталось <span data-live="truck-t">${Math.max(0, truck.waitLeft)}</span> мин · примите посылки`,
+    return step('truck', 'urgent', `Машина привезла ${truck.left}`, `<span data-live="truck-t">осталось ${Math.max(0, truck.waitLeft)} мин</span> · посылки ждут`,
       `<button class="btn primary" data-act="acceptAll">Принять всё</button>`);
   if (S.receiving.length)
-    return step(2, `Разложите ${S.receiving.length} в приёмке`, 'Выберите ячейку на стеллаже',
-      `<button class="btn" data-act="placeAll">Разложить</button>`);
-  const nx = nextClient(S);
-  if (nx)
-    return step(3, `Клиент ${esc(nx.code || nx.returnCode || '')} ждёт`, 'Самый срочный в очереди',
-      `<button class="btn primary" data-act="nextClient">Обслужить</button>`);
+    return step('inbox', 'urgent', `В приёмке ${S.receiving.length}`, 'Разложите по ячейкам — клиенты ждут',
+      `<button class="btn primary" data-act="placeAll">Разложить</button>`);
   if (S.broken && Object.keys(S.broken).some(k => S.broken[k]))
-    return step(4, 'Техника сломана', 'Ремонт окупается за день',
+    return step('wrench', '', 'Техника сломана', 'Ремонт окупается за день',
       `<button class="btn" data-act="repairAll">Починить</button>`);
-  return step(0, 'Всё под контролем', 'Очередь пуста — можно ускорить время',
+  const nx = nextClient(S);
+  if (nx) return '';
+  return step('check', 'calm', 'Всё под контролем', 'Очередь пуста — можно ускорить время',
     `<button class="btn ghost" data-act="speed" data-v="3">3×</button>`);
 }
 
@@ -1030,7 +1028,7 @@ function truckCard(truck){
     <div class="tc-ico">${icon('truck')}</div>
     <div style="min-width:0">
       <div class="tc-t">Машина · ${truck.left} посылок</div>
-      <div class="tc-s" data-live="truck-t">уедет через ${Math.max(0, truck.waitLeft)} мин</div>
+      <div class="tc-s" data-live="truck-t">осталось ${Math.max(0, truck.waitLeft)} мин</div>
       <div class="bar thin"><i class="${truck.waitLeft < 60 ? 'danger' : 'warn'}" data-live="truck-bar" style="width:${pct(truck.waitLeft, 300)}%"></i></div>
     </div>
     <div class="tc-act">
@@ -1072,7 +1070,7 @@ function viewDay(){
   return `
   ${viewHud()}
   <main class="wrap day${ab ? ' with-bar' : ''}">
-    <div data-r="coach">${coachCard()}</div>
+    ${coachCard() ? `<div data-r="coach">${coachCard()}</div>` : ''}
 
     <div data-r="alerts">
     ${E.brokenItems(S).length ? `<div class="alert badline">
@@ -1094,7 +1092,6 @@ function viewDay(){
     <div class="day-grid">
       <section class="col sec-a">
         <div data-r="machine">${coachCoversTruck() ? '' : truckCard(truck)}</div>
-        ${searchCard()}
         ${queueCard()}
 
         <div class="card ${S.receiving.length ? 'pad' : 'tight'}" data-r="receiving">
@@ -1123,6 +1120,7 @@ function viewDay(){
       </section>
 
       <section class="col sec-b">
+        ${searchCard()}
         <div class="card pad" data-r="returns">
           <div class="sec-head">
             <div class="sh-ico">${icon('returns')}</div>

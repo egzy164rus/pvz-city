@@ -1368,3 +1368,13 @@ h1,h2,h3{ letter-spacing:-.022em }
   .kpi-row{ font-size:12.5px }
   .hero h2, .brief-day{ font-size:26px }
 }
+
+/* коуч: иконка вместо номера шага */
+.coach .co-n{ display:grid; place-items:center; width:34px; height:34px; border-radius:11px; flex:0 0 auto;
+  background:rgba(255,255,255,.06); border:1px solid var(--line); color:var(--txt-2) }
+.coach .co-n .i{ width:17px; height:17px }
+.coach.urgent .co-n{ background:color-mix(in srgb, var(--warn) 18%, transparent);
+  border-color:color-mix(in srgb, var(--warn) 40%, var(--line)); color:#ffd9a0 }
+.coach.calm .co-n{ background:color-mix(in srgb, var(--good) 16%, transparent);
+  border-color:color-mix(in srgb, var(--good) 34%, var(--line)); color:#9ff0c6 }
+.coach{ align-items:center !important }
