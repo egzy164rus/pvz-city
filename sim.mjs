@@ -90,8 +90,11 @@ function botActions(){
     E.returnHands(S);
     return;
   }
+  // 1б) принять возврат, если есть
+  const ret = S.clients.find(x => x.returnItem);
+  if (ret && E.takeReturn(S, ret.id).ok) return;
   // 2) обслужить самого нетерпеливого: дойти до полки
-  const c = [...S.clients].filter(x => !x.consult).sort((a,b) => a.patience - b.patience)[0];
+  const c = [...S.clients].filter(x => !x.consult && !x.returnItem && E.clientLocation(S, x.id)).sort((a,b) => a.patience - b.patience)[0];
   if (c && E.startFetch(S, c.id).ok) return;
   // 2) консультация
   const cons = S.clients.find(x => x.consult);
@@ -104,6 +107,8 @@ function botActions(){
       if (idx >= 0 && E.placeBox(S, pkg.id, sh.id, idx).ok) return;
     }
   }
+  // 3б) отправить возвраты в 19:00
+  if (S.returns.length && S.minutes >= E.CFG.RET_HOUR_MIN) { E.shipReturns(S, true); return; }
   // 4) принять поставку
   if (S.receiving.length < Math.max(2, Math.floor(E.CFG.RECV_MAX * 0.6))){
     if (E.acceptBox(S, true).ok) return;

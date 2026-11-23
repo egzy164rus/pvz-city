@@ -16,6 +16,13 @@ export const CFG = {
   PATIENCE_BASE: 120,       // игровых минут терпения
   UTIL_PER_DAY: 400,
   SEARCH_BASE: 14,          // игровых минут на поиск заказа
+  RET_CAP: 4,               // сколько возвратов влезает на стойку
+  RET_HOUR_MIN: 600,        // 19:00 — приезжает машина за возвратами
+  RET_SHIP_FEE: 25,         // платят за обработку возврата
+  RET_LATE_FINE: 80,        // штраф за неотправленный возврат
+  PACK_PRICE: 60,           // упаковка заказа
+  SHIFT_PART: 0.62,         // смена полдня стоит 62% оклада
+  BREAK_CHANCE: 0.10,       // шанс поломки техники за день
   NEG_DAYS_LIMIT: 3,
   DIRTY_TIRED: 70,
   PREPAY_DAYS: 10,         // аванс за первые дни работы при найме
@@ -148,6 +155,8 @@ export function createGame({ brandId, premiseId, seed }){
     fittingBusy: [],
     shelves: [],
     receiving: [],
+    returns: [],            // принятые возвраты, ждут машину
+    broken: {},             // сломанная техника: { printer:true }
     clients: [],
     staff: [],
     candidates: [],
@@ -180,6 +189,7 @@ function freshDayStats(){
     revenue:0, tips:0, fines:0, issued:0, missed:0, consults:0,
     slaSum:0, arrivals:0, accepted:0, payroll:0, rent:0, util:0, tax:0, loan:0, net:0,
     peakQueue:0, mistakes:0, tryon:0, events:0,
+    returned:0, packed:0, shipped:0, retFines:0, repairs:0,
   };
 }
 
@@ -191,6 +201,36 @@ export function pushLog(S, text, type='info'){
 }
 
 /* ---------------- магазин / люди ---------------- */
+/* ---------------- поломки техники ---------------- */
+const FRAGILE_TECH = ['scanner','printer','terminal','coffee'];
+
+export function brokenItems(S){
+  return Object.keys(S.broken || {}).filter(id => S.broken[id] && S.owned[id]);
+}
+export function repairCost(S, id){
+  const it = ITEMS[id];
+  return it ? Math.round(it.cost * 0.3 / 50) * 50 : 0;
+}
+export function repair(S, id){
+  if (!S.broken[id]) return { ok:false, msg:'Не сломано' };
+  const cost = repairCost(S, id);
+  if (S.money < cost) return { ok:false, msg:`Нужно ${fmt(cost)} ₽` };
+  S.money -= cost;
+  delete S.broken[id];
+  S.dayStats.repairs += cost;
+  pushLog(S, `${ITEMS[id].name} отремонтирован за ${fmt(cost)} ₽.`, 'good');
+  return { ok:true, cost };
+}
+function rollBreakdowns(S){
+  S.broken = S.broken || {};
+  const candidates = FRAGILE_TECH.filter(id => S.owned[id] && !S.broken[id]);
+  if (!candidates.length) return;
+  if (!chance(S, CFG.BREAK_CHANCE)) return;
+  const id = pick(S, candidates);
+  S.broken[id] = true;
+  pushLog(S, `Сломалась техника: ${ITEMS[id].name}. Работает хуже — почините в «Складе».`, 'bad');
+}
+
 export function itemLocked(S, id){
   const it = ITEMS[id];
   if (!it) return true;
@@ -224,6 +264,29 @@ export function buy(S, id){
   return { ok:true };
 }
 
+/* ---------------- смены ---------------- */
+export const SHIFTS = {
+  full: { name:'Полный день', short:'09–21', pay:1.00 },
+  am:   { name:'Утро',        short:'09–15', pay:0.62 },
+  pm:   { name:'Вечер',       short:'15–21', pay:0.62 },
+};
+export function shiftPay(shift){ return (SHIFTS[shift] || SHIFTS.full).pay; }
+export function onShiftNow(S, st){
+  const sh = st.shift || 'full';
+  if (sh === 'full') return true;
+  if (sh === 'am') return S.minutes < 360;
+  if (sh === 'pm') return S.minutes >= 360;
+  return true;
+}
+export function setShift(S, id, shift){
+  const st = S.staff.find(x => x.id === id);
+  if (!st || !SHIFTS[shift]) return { ok:false };
+  st.shift = shift;
+  st.onShift = onShiftNow(S, st);
+  return { ok:true };
+}
+export function shiftSalary(st){ return Math.round(st.salary * shiftPay(st.shift)); }
+
 export function hireCost(S, role){
   const r = ROLES[role];
   return (r.onboard || 0) + r.salary * CFG.PREPAY_DAYS;
@@ -252,7 +315,7 @@ export function hire(S, role){
   const cost = hireCost(S, role);
   S.money -= cost;
   S.candidates = S.candidates.filter(c2 => c2.id !== cand.id);
-  S.staff.push({ ...cand, id:'e'+(S.aid++), mood:70, fatigue:0, task:null, onShift:true, daysWorked:0, prepay: CFG.PREPAY_DAYS });
+  S.staff.push({ ...cand, id:'e'+(S.aid++), mood:70, fatigue:0, task:null, shift:'full', onShift:true, daysWorked:0, prepay: CFG.PREPAY_DAYS });
   pushLog(S, `Нанят ${ROLES[role].name}: ${cand.name} (${cand.traitName}). Оформление и аванс: −${fmt(cost)} ₽`, 'hire');
   buildCandidates(S);
   return { ok:true };
@@ -308,7 +371,7 @@ export function dayDemand(S){
   const dowF = [1.0, 0.95, 0.95, 1.0, 1.1, 1.25, 0.85][dow];  // пн..вс
   const growth = 1 + Math.min(0.45, (S.day - 1) * 0.025);
   let d = 26 * p.traffic * b.traffic * npsFactor(S) * dowF * growth;
-  if (S.owned.coffee) d *= ITEMS.coffee.traffic;
+  if (S.owned.coffee && !(S.broken && S.broken.coffee)) d *= ITEMS.coffee.traffic;
   return d;
 }
 
@@ -373,7 +436,8 @@ export function startDay(S){
   S.trucks = [];
   S.event = null;
 
-  const total = Math.max(8, Math.round(dayDemand(S) * 0.95));
+  // посылок не меньше, чем клиентов: клиент приходит только под свою посылку
+  const total = Math.max(9, Math.round(dayDemand(S)));
   const parts = [0.6, 0.4];
   const times = [25, 390];
   parts.forEach((pct, i) => {
@@ -386,8 +450,9 @@ export function startDay(S){
     });
   });
 
-  S.staff.forEach(st => { st.task = null; st.onShift = true; st.fatigue = Math.max(0, st.fatigue - 20); });
+  S.staff.forEach(st => { st.task = null; st.shift = st.shift || 'full'; st.onShift = onShiftNow(S, st); st.fatigue = Math.max(0, st.fatigue - 20); });
   S.forecast = forecastFor(S);
+  rollBreakdowns(S);
   pushLog(S, `День ${S.day}: открываемся. Прогноз ${Math.round(dayDemand(S))} клиентов.`, 'info');
   scheduleEvents(S);
 }
@@ -421,18 +486,14 @@ export function stepMinute(S){
   for (const tr of S.trucks){
     if (!tr.arrived && S.minutes >= tr.arriveAt){
       tr.arrived = true;
+      // машина ждёт и не выбрасывает посылки: сколько влезает — принимайте,
+      // остальное уедет только если простой до конца стоянки
       const room = Math.max(0, capacity(S).free - S.receiving.length);
-      if (tr.left > room){
-        const dropped = tr.left - room;
-        tr.left = room;
-        if (dropped > 0){
-          S.dayStats.fines += fine(S, dropped * 120);
-          S.nps = clamp(S.nps - 0.02, 0, 5);
-          pushLog(S, `Склад переполнен: ${dropped} посылок не влезли, машина увезла их назад. Штраф.`, 'bad');
-        }
+      if (tr.left > 0){
+        pushLog(S, room > 0
+          ? `Пришла машина: ${tr.left} посылок. Принимайте!`
+          : `Машина пришла, но зона приёмки занята — освободите место.`, room > 0 ? 'truck' : 'bad');
       }
-      if (tr.left > 0) pushLog(S, `Пришла машина: ${tr.left} посылок. Принимайте!`, 'truck');
-      else pushLog(S, 'Машина приехала и уехала: некуда разгружать.', 'bad');
     }
     if (tr.arrived && tr.left > 0){
       tr.waitLeft--;
@@ -448,6 +509,19 @@ export function stepMinute(S){
     }
   }
 
+  // машина за возвратами
+  if (S.minutes === CFG.RET_HOUR_MIN && S.returns.length) shipReturns(S, true);
+
+  // смены: часть команды приходит/уходит по расписанию
+  for (const st of S.staff){
+    const now = onShiftNow(S, st);
+    if (now !== st.onShift){
+      if (!now && st.task){ st.task = null; }
+      st.onShift = now;
+      pushLog(S, now ? `${st.name} начал(а) смену` : `${st.name} ушёл(ла) со смены`, 'info');
+    }
+  }
+
   // клиенты
   const hour = Math.floor(S.minutes / 60);
   const hw = HOUR_W[Math.min(11, Math.max(0, hour))];
@@ -460,9 +534,13 @@ export function stepMinute(S){
   const gone = S.clients.filter(c => c.patience <= 0);
   if (gone.length){
     for (const c of gone){
-      S.nps = clamp(S.nps - (c.consult ? 0.008 : 0.04), 0, 5);
-      if (!c.consult){ S.dayStats.missed++; S.kpiWeek.missed++; }
-      pushLog(S, c.consult ? `Клиент ушёл, не дождавшись консультации.` : `Клиент ушёл без заказа ${c.code}.`, 'bad');
+      // возврат и консультация — не «упущенный заказ», только лёгкий минус к NPS
+      const soft = c.consult || c.returnItem;
+      S.nps = clamp(S.nps - (soft ? 0.008 : 0.04), 0, 5);
+      if (!soft){ S.dayStats.missed++; S.kpiWeek.missed++; }
+      pushLog(S, c.consult ? `Клиент ушёл, не дождавшись консультации.`
+               : c.returnItem ? `Клиент с возвратом ${c.returnCode} ушёл.`
+               : `Клиент ушёл без заказа ${c.code}.`, 'bad');
     }
     S.clients = S.clients.filter(c => c.patience > 0);
   }
@@ -486,14 +564,40 @@ export function stepMinute(S){
 function spawnClient(S){
   const busy = new Set(S.clients.map(c => c.code).filter(Boolean));
   const available = storedPackages(S).filter(p => !busy.has(p.code));
-  S.dayStats.arrivals++;
-  S.kpiWeek.arrivals++;
   const patienceMax = CFG.PATIENCE_BASE * patienceMult(S) * rr(S, 0.85, 1.15);
 
-  if (available.length && chance(S, 0.88)){
+  // возврат: клиент принёс посылку назад — отдельная работа, не требует места на полке
+  if (chance(S, 0.09) && S.returns.length + S.clients.filter(c => c.returnItem).length < CFG.RET_CAP){
+    S.dayStats.arrivals++;
+    S.kpiWeek.arrivals++;
+    S.clients.push({
+      id: 'cl' + (S.aid++), code: null, consult:false, returnItem:true, returnCode: codeGen(S),
+      type:'normal', tryon:false, patience: patienceMax * 1.35, maxPatience: patienceMax * 1.35,
+      arrivedAt: S.minutes,
+    });
+    return;
+  }
+
+  // вопрос в зале — редко и только когда есть чем заняться
+  if (available.length && chance(S, 0.05) && !S.clients.some(c => c.consult)){
+    S.dayStats.arrivals++;
+    S.kpiWeek.arrivals++;
+    S.clients.push({
+      id: 'cl' + (S.aid++), code: null, consult:true, type:'consult',
+      patience: patienceMax, maxPatience: patienceMax, arrivedAt: S.minutes,
+    });
+    return;
+  }
+
+  // клиент приходит только под свою посылку: нет посылок — нет клиента
+  if (!available.length) return;
+
+  S.dayStats.arrivals++;
+  S.kpiWeek.arrivals++;
+  {
     const pkg = available[ri(S, 0, available.length - 1)];
     const r = rnd(S);
-    let type = 'normal', mood = 0;
+    let type = 'normal';
     if (r > 0.94){ type = 'scandal'; }
     else if (r > 0.78){ type = 'hurry'; }
     S.clients.push({
@@ -501,11 +605,6 @@ function spawnClient(S){
       patience: patienceMax * (type === 'hurry' ? 0.6 : type === 'scandal' ? 0.8 : 1),
       maxPatience: patienceMax * (type === 'hurry' ? 0.6 : type === 'scandal' ? 0.8 : 1),
       arrivedAt: S.minutes,
-    });
-  } else {
-    S.clients.push({
-      id: 'cl' + (S.aid++), code: null, consult:true, type:'consult',
-      patience: patienceMax, maxPatience: patienceMax, arrivedAt: S.minutes,
     });
   }
 }
@@ -730,6 +829,7 @@ export function fetchMinutes(S, shelfId){
   const d = shelfDistance(S, shelfId);
   let t = (d >= 99) ? 12 : 2 + d * 0.45;
   if (S.owned.scanner) t -= 1;
+  if (S.broken && S.broken.scanner) t += 2.5;      // сломанный сканер — ищите глазами
   if (S.fatigue > CFG.DIRTY_TIRED) t += 2;
   t /= staffSpeedMult(S);
   return Math.max(2, Math.round(t));
@@ -750,7 +850,7 @@ export function startFetch(S, clientId){
 }
 
 /* шаг 2: отдать клиенту */
-export function giveToClient(S, clientId){
+export function giveToClient(S, clientId, withPack){
   if (S.phase !== 'day') return { ok:false };
   if (!S.hands) return { ok:false, msg:'В руках нет посылки' };
   if (S.player.busy) return { ok:false, msg:'Вы уже в пути' };
@@ -761,10 +861,63 @@ export function giveToClient(S, clientId){
     S.hands = null;
     return { ok:false, msg:'Клиент ушёл — посылка вернулась на полку' };
   }
-  const t = HANDOVER_MIN;
-  S.player.busy = { kind:'handover', clientId, t, total:t };
+  const pack = !!withPack && canPack(S);
+  const t = HANDOVER_MIN + (pack ? 1 : 0);
+  S.player.busy = { kind:'handover', clientId, t, total:t, pack };
   return { ok:true, minutes:t, started:true };
 }
+
+/* ---------------- возвраты ---------------- */
+export function returnMinutes(S){
+  let t = 2;
+  if (S.owned.printer && !S.broken.printer) t -= 1;
+  return Math.max(1, t);
+}
+export function takeReturn(S, clientId){
+  if (S.phase !== 'day') return { ok:false };
+  if (S.player.busy) return { ok:false, msg:'Вы уже заняты' };
+  if (tired(S)) return { ok:false, msg:'Вы вымотаны' };
+  const c = S.clients.find(x => x.id === clientId);
+  if (!c || !c.returnItem) return { ok:false, msg:'Это не возврат' };
+  if (S.returns.length >= CFG.RET_CAP) return { ok:false, msg:`Стойка возвратов занята (${CFG.RET_CAP})` };
+  const t = returnMinutes(S);
+  S.player.busy = { kind:'ret', clientId, t, total:t };
+  return { ok:true, minutes:t };
+}
+function finishReturn(S, busy){
+  const c = S.clients.find(x => x.id === busy.clientId);
+  S.clients = S.clients.filter(x => x.id !== busy.clientId);
+  S.returns.push({ id:'r'+(S.aid++), code: c ? c.returnCode : codeGen(S), from: c ? c.code || 'клиент' : 'клиент', at:S.minutes });
+  S.dayStats.returned++;
+  S.nps = clamp(S.nps + 0.015, 0, 5);
+  addXp(S, 6);
+  pushLog(S, `Принят возврат ${S.returns[S.returns.length-1].code}. Машина заберёт в 19:00.`, 'good');
+}
+
+export function shipReturns(S, force){
+  if (!S.returns.length) return { ok:false, msg:'Возвратов нет' };
+  if (!force && S.minutes < CFG.RET_HOUR_MIN) return { ok:false, msg:'Машина за возвратами приезжает в 19:00' };
+  const n = S.returns.length;
+  const fee = n * CFG.RET_SHIP_FEE;
+  S.money += fee;
+  S.dayStats.revenue += fee;
+  S.dayStats.shipped += n;
+  S.returns = [];
+  pushLog(S, `Возвраты отправлены: ${n} шт. +${fmt(fee)} ₽ за обработку.`, 'good');
+  return { ok:true, n, fee };
+}
+
+function packOrder(S, pkg){
+  S.money += CFG.PACK_PRICE;
+  S.dayStats.revenue += CFG.PACK_PRICE;
+  S.dayStats.packed++;
+  S.nps = clamp(S.nps + 0.01, 0, 5);
+  addXp(S, 3);
+  pushLog(S, `Упаковали ${pkg.code}: +${CFG.PACK_PRICE} ₽ за услугу.`, 'good');
+}
+
+/* упаковка заказа: платная услуга при выдаче (нужен принтер) */
+export function canPack(S){ return !!S.owned.printer && !S.broken.printer; }
 
 export function returnHands(S){
   if (!S.hands) return { ok:false, msg:'Руки пусты' };
@@ -907,6 +1060,8 @@ function completePlayerTask(S){
     return;
   }
 
+  if (b.kind === 'ret'){ finishReturn(S, b); return; }
+
   if (b.kind === 'handover'){
     const pkg = S.hands;
     S.hands = null;
@@ -914,6 +1069,7 @@ function completePlayerTask(S){
     const c = S.clients.find(x => x.id === b.clientId);
     if (!c){ if (pkg) returnToShelf(S, pkg); return; }
     spendFatigue(S, 1);
+    if (b.pack) packOrder(S, pkg);
     issueInternal(S, c, pkg, null);
   }
 }
@@ -921,7 +1077,8 @@ function completePlayerTask(S){
 export function payoutMult(S, pkg){
   const b = brandOf(S), p = premOf(S);
   let m = p.payout * b.payout * (0.70 + 0.30 * compliance(S));
-  if (S.owned.terminal) m *= ITEMS.terminal.pay;
+  if (S.owned.terminal && !(S.broken && S.broken.terminal)) m *= ITEMS.terminal.pay;
+  else if (S.broken && S.broken.terminal) m *= 0.94;   // без терминала часть оплат «мимо кассы»
   m *= 1 + (S.lvl - 1) * 0.05;
   m *= contractOf(S).pay;
   return m;
@@ -1292,7 +1449,7 @@ export function endDay(S){
   let payroll = 0, onPrepay = 0;
   for (const st of S.staff){
     if ((st.prepay || 0) > 0){ st.prepay--; onPrepay++; }
-    else payroll += st.salary;
+    else payroll += Math.round(st.salary * shiftPay(st.shift));
   }
   S.dayStats.onPrepay = onPrepay;
   const rent = p.rent;
@@ -1300,6 +1457,15 @@ export function endDay(S){
   const loanPay = Math.round(S.debt * CFG.LOAN_RATE);
   const gross = ds.revenue;
   const tax = S.day % 7 === 0 ? Math.round(gross * CFG.TAX_RATE) : 0;
+
+  // неотправленные возвраты — убыток
+  if (S.returns && S.returns.length){
+    const late = S.returns.length * CFG.RET_LATE_FINE;
+    ds.fines += late;
+    ds.retFines = late;
+    pushLog(S, `${S.returns.length} возврат(ов) не ушли вовремя. Списано ${fmt(late)} ₽.`, 'bad');
+    S.returns = [];
+  }
 
   const costs = rent + util + payroll + loanPay + tax + ds.fines;
   S.money -= costs;
@@ -1380,7 +1546,7 @@ export function nextDay(S){
   S.report = null;
   S.dayStats = freshDayStats();
   S.recalcDone = false;
-  S.staff.forEach(st => { st.task = null; st.onShift = true; });
+  S.staff.forEach(st => { st.task = null; st.onShift = onShiftNow(S, st); });
   recalcForecast(S);
   buildCandidates(S);
   pushLog(S, `День ${S.day}. Утро. Касса: ${fmt(S.money)} ₽.`, 'info');
@@ -1397,6 +1563,9 @@ export function deserialize(str){
   try {
     const S = JSON.parse(str);
     if (!S || typeof S !== 'object' || !S.day) return null;
+    S.returns = S.returns || [];
+    S.broken = S.broken || {};
+    S.staff = (S.staff || []).map(st => ({ ...st, shift: st.shift || 'full' }));
     return S;
   } catch(e){ return null; }
 }

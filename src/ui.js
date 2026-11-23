@@ -291,8 +291,13 @@ function liveUpdate(){
       set('[data-live="truck-t"]', `осталось ${Math.max(0, tr.waitLeft)} мин`);
       width('[data-live="truck-bar"]', pct(tr.waitLeft, tr.waitTotal || 300));
     }
+    if (S.clients.length){
+      const nx = [...S.clients].sort((a,b) => a.patience - b.patience)[0];
+      set('[data-live="next-wait"]', String(Math.max(0, Math.round(nx.patience))));
+    }
     for (const c of S.clients){
       width(`[data-live="pat:${c.id}"]`, pct(c.patience, c.maxPatience));
+      set(`[data-live="patn:${c.id}"]`, Math.max(0, Math.round(c.patience)) + ' мин');
     }
     const b = S.player.busy;
     if (b){
@@ -449,8 +454,8 @@ function viewPlan(){
           <div class="muted small">${b.name} · ${p.name} · ${new Date().getDay() ? '' : ''}${['пн','вт','ср','чт','пт','сб','вс'][(S.day-1)%7]}</div>
         </div>
         <div class="brief-nums">
-          <div class="bn"><b>${expected}</b><span>прогноз клиентов</span></div>
-          <div class="bn"><b>${Math.round(expected*0.95)}</b><span>посылок привезут</span></div>
+          <div class="bn"><b>${Math.min(expected, truckPlan(S))}</b><span>прогноз клиентов</span></div>
+          <div class="bn"><b>${truckPlan(S)}</b><span>посылок привезут</span></div>
           <div class="bn"><b>${cap.free}</b><span>свободно ячеек</span></div>
         </div>
       </div>
@@ -661,14 +666,17 @@ function shopView(){
       const can = !locked && !(it.once && owned) && !noMoney && !noSpace;
       let btn;
       const inPalette = (S.unplaced || []).includes(id);
-      if (locked) btn = `<span class="muted small">с ур. ${it.lvl}</span>`;
+      const broken = S.broken[id] && owned;
+      if (broken) btn = `<button class="btn small ${S.money >= E.repairCost(S,id) ? '' : 'dis'}" data-act="repair" data-id="${id}">${icon('wrench')} ${fmt(E.repairCost(S,id))} ₽</button>`;
+      else if (locked) btn = `<span class="muted small">с ур. ${it.lvl}</span>`;
       else if (it.once && owned) btn = `<span class="ok small">${icon('check')} куплено</span>`;
       else btn = `<button class="btn small ${can ? '' : 'dis'}" data-act="buy" data-id="${id}" ${can ? '' : 'disabled'}>${inPalette ? 'ещё' : ''} ${fmt(it.cost)} ₽</button>`;
       return `
       <div class="item ${locked ? 'locked' : ''}">
         <div class="item-icon">${itemIcon(id)}</div>
         <div class="item-main">
-          <div class="item-name">${it.name} ${owned > 1 ? `<span class="chip">×${owned}</span>` : ''}</div>
+          <div class="item-name">${it.name} ${owned > 1 ? `<span class="chip">×${owned}</span>` : ''}
+            ${S.broken[id] && owned ? '<span class="tag bad">сломано</span>' : ''}</div>
           <div class="muted small">${it.desc}${it.physical ? ` · ${it.size.w}×${it.size.h} кл.` : ''}</div>
         </div>
         ${btn}
@@ -677,8 +685,15 @@ function shopView(){
   </div>`;
 }
 
+/* сколько посылок реально привезут за день (ровно как в движке) */
+function truckPlan(S){
+  const total = Math.max(9, Math.round(E.dayDemand(S)));
+  const boxes = [0.6, 0.4].map(pct => Math.max(2, Math.round(total * pct)));
+  return boxes[0] + boxes[1];
+}
+
 function staffView(){
-  const payroll = S.staff.reduce((a, st) => a + st.salary, 0);
+  const payroll = S.staff.reduce((a, st) => a + E.shiftSalary(st), 0);
   const roles = Object.keys(E.ROLES);
   return `
   <div class="row-between">
@@ -686,16 +701,21 @@ function staffView(){
     <span class="muted small">ФОТ ${fmt(payroll)} ₽/день</span>
   </div>
   ${S.staff.length ? `<div class="staff-list">${S.staff.map(st => `
-    <div class="staff-item">
+    <div class="staff-item shiftable">
       <div class="avatar">${st.name[0]}</div>
       <div class="item-main">
-        <div class="item-name">${st.name} <span class="muted small">${E.ROLES[st.role].name}</span></div>
+        <div class="item-name">${st.name} <span class="muted small">${E.ROLES[st.role].name}</span>
+          ${S.phase === 'day' && !st.onShift ? '<span class="tag">не на смене</span>' : ''}</div>
         <div class="muted small">${st.traitName} · скорость ${st.sp}/10 · аккуратность ${st.ac} · сервис ${st.sv}</div>
         <div class="bar"><i style="width:${st.mood}%" class="${st.mood < 35 ? 'danger' : st.mood < 60 ? 'warn' : ''}"></i></div>
       </div>
       <div class="staff-right">
-        <div class="small">${(st.prepay||0) > 0 ? `аванс: ${st.prepay} дн.` : fmt(st.salary) + ' ₽/день'}</div>
+        <div class="small">${(st.prepay||0) > 0 ? `аванс: ${st.prepay} дн.` : fmt(E.shiftSalary(st)) + ' ₽/день'}</div>
         <button class="btn ghost small" data-act="fire" data-id="${st.id}">уволить</button>
+      </div>
+      <div class="seg shift">
+        ${Object.keys(E.SHIFTS).map(k => `<button class="seg-b ${(st.shift||'full') === k ? 'on' : ''}" data-act="setShift" data-id="${st.id}" data-v="${k}">
+          ${icon(k === 'am' ? 'sun' : k === 'pm' ? 'moon' : 'clock')} ${E.SHIFTS[k].short}</button>`).join('')}
       </div>
     </div>`).join('')}</div>` : `<div class="empty">Пока вы работаете один. Наймите грузчика — он разгружает поставки, или продавца — он выдаёт заказы.</div>`}
 
@@ -766,6 +786,10 @@ function viewDay(){
   ${viewHud()}
   <main class="wrap day${ab ? ' with-bar' : ''}">
     <div data-r="alerts">
+    ${E.brokenItems(S).length ? `<div class="alert badline">
+        ${icon('wrench')} Сломано: ${E.brokenItems(S).map(id => E.ITEMS[id].name).join(', ')}
+        <button class="btn ghost small" data-act="tab" data-id="policy">починить</button>
+      </div>` : ''}
     ${S.fatigue > 60 ? `<div class="alert warnline">Усталость ${Math.round(S.fatigue)}% — ошибки вероятнее, обслуживание медленнее.</div>` : ''}
     ${busy ? `<div class="alert busyline">
         ${icon(busy.kind === 'fetch' ? 'pin' : 'check')} ${busy.kind === 'fetch' ? 'Иду за посылкой' : 'Отдаю заказ'} <b>${busyClient ? esc(busyClient.code) : ''}</b>
@@ -792,6 +816,17 @@ function viewDay(){
           <div class="bar thin"><i class="${truck.waitLeft < 60 ? 'danger' : 'warn'}" data-live="truck-bar" style="width:${pct(truck.waitLeft, 300)}%"></i></div>
         </div>` : ''}</div>
 
+        <div class="card pad" data-r="returns">
+          <div class="row-between">
+            <h3>${icon('returns')} Возвраты <span class="muted small">${S.returns.length}/${E.CFG.RET_CAP}</span></h3>
+            <span class="muted small">машина в 19:00</span>
+          </div>
+          ${S.returns.length ? `<div class="ret-row">${S.returns.map(r => `<span class="pk ret">${esc(r.code)}</span>`).join('')}</div>` : emptyBox('Пока пусто. Клиент с возвратом приходит сам.')}
+          ${S.minutes >= E.CFG.RET_HOUR_MIN && S.returns.length
+            ? `<button class="btn small" data-act="shipReturns">Отправить ${S.returns.length} шт. (+${S.returns.length * E.CFG.RET_SHIP_FEE} ₽)</button>`
+            : (S.returns.length ? `<div class="muted small">Отправятся сами в 19:00 · ${S.returns.length * E.CFG.RET_SHIP_FEE} ₽ за обработку</div>` : '')}
+        </div>
+
         <div class="card pad" data-r="receiving">
           <div class="row-between">
             <h3>${icon('inbox')} Зона приёмки <span class="muted small">${S.receiving.length}/${E.CFG.RECV_MAX}</span></h3>
@@ -812,7 +847,7 @@ function viewDay(){
             <h3>${icon('users')} Очередь <span class="muted small">${S.clients.length}</span></h3>
             <span class="muted small">продавцов: ${S.staff.filter(s => s.role === 'seller').length}</span>
           </div>
-          ${S.clients.length ? `<div class="queue">${S.clients.slice(0, 8).map(c => clientCard(c)).join('')}</div>` : `<div class="empty small">Пока никого. Передохните.</div>`}
+          ${S.clients.length ? `<div class="queue">${[...S.clients].sort((a,b) => a.patience - b.patience).slice(0, 8).map(c => clientCard(c)).join('')}</div>` : `<div class="empty small">Пока никого. Передохните.</div>`}
           ${S.clients.length > 8 ? `<div class="muted small">и ещё ${S.clients.length - 8}…</div>` : ''}
         </div>
 
@@ -844,6 +879,23 @@ function viewDay(){
   </main>`;
 }
 
+/* ближайший клиент, которого можно обслужить прямо сейчас */
+function nextClient(S){
+  const busy = new Set(S.staff.map(x => x.task && x.task.kind === 'serve' ? x.task.clientId : null).filter(Boolean));
+  const ready = S.clients
+    .filter(c => !c.consult && !busy.has(c.id))
+    .map(c => {
+      if (c.returnItem) return { c, urgent: c.patience };
+      const loc = E.clientLocation(S, c.id);
+      if (!loc) return null;
+      const walk = E.fetchMinutes(S, loc.shelfId);
+      return { c, urgent: c.patience - walk * 0.6 };
+    })
+    .filter(Boolean)
+    .sort((a,b) => a.urgent - b.urgent);
+  return ready.length ? ready[0].c : null;
+}
+
 /* панель текущего дела: всегда под рукой, не надо искать клиента на экране */
 function actionBar(){
   const b = S.player.busy;
@@ -853,9 +905,11 @@ function actionBar(){
   let body = '';
   if (b){
     const who = S.clients.find(c => c.id === b.clientId);
-    const label = b.kind === 'fetch' ? icon('pin') + ' Иду за посылкой' : icon('check') + ' Несу заказ клиенту';
+    const label = b.kind === 'fetch' ? icon('pin') + ' Иду за посылкой'
+                : b.kind === 'ret' ? icon('returns') + ' Оформляю возврат'
+                : icon('check') + ' Несу заказ клиенту';
     body = `<div class="ab-main">
-        <div class="ab-title">${label}${who ? ' · ' + esc(who.code) : ''}</div>
+        <div class="ab-title">${label}${who ? ' · ' + esc(who.code || who.returnCode || '') : ''}</div>
         <div class="bar thin"><i data-live="ab-bar" style="width:${pct(b.total - b.t, b.total)}%"></i></div>
       </div>
       <div class="ab-time" data-live="ab-t">${Math.max(0, Math.ceil(b.t))} мин</div>`;
@@ -865,7 +919,10 @@ function actionBar(){
         <div class="ab-title">${icon('box')} В руках ${esc(S.hands.code)}</div>
         <div class="small muted">${c ? 'Несите клиенту' : 'Клиент ушёл — верните на полку'}</div>
       </div>
-      ${c ? `<button class="btn primary" data-act="give" data-id="${c.id}">Выдать</button>`
+      ${c ? `<div class="ab-actions">
+              ${E.canPack(S) ? `<button class="btn" data-act="givePack" data-id="${c.id}">${icon('pack')} Упаковать +${E.CFG.PACK_PRICE} ₽</button>` : ''}
+              <button class="btn primary" data-act="give" data-id="${c.id}">Выдать</button>
+            </div>`
           : `<button class="btn ghost" data-act="returnHands">На полку</button>`}`;
   } else if (sel && loc){
     body = `<div class="ab-main">
@@ -879,7 +936,13 @@ function actionBar(){
         <div class="small muted">Клиент ${esc(sel.code)} ждёт</div>
       </div>`;
   } else {
-    return '';
+    const next = nextClient(S);
+    if (!next || S.phase !== 'day') return '';
+    body = `<div class="ab-main">
+        <div class="ab-title">${icon('chevron')} Следующий клиент</div>
+        <div class="small muted">${esc(next.code || next.returnCode || 'Клиент')} · ждёт <span data-live="next-wait">${Math.max(0, Math.round(next.patience))}</span> мин</div>
+      </div>
+      <button class="btn primary" data-act="nextClient">Обслужить</button>`;
   }
   return `<div class="actionbar" data-r="actionbar">${body}</div>`;
 }
@@ -916,6 +979,18 @@ function clientCard(c){
   const patiencePct = pct(c.patience, c.maxPatience);
   const myTask = busy && busy.clientId === c.id;
 
+  if (c.returnItem){
+    const left = Math.max(0, Math.round(c.patience));
+    return `<div class="client return" data-act="takeReturn" data-id="${c.id}">
+      <div class="cl-tap static">
+        <div class="cl-code">${icon('returns')} Возврат ${esc(c.returnCode)}</div>
+        <div class="muted small">Принёс посылку назад · <span data-live="patn:${c.id}">${left} мин</span></div>
+        <div class="bar"><i class="${patiencePct < 30 ? 'danger' : patiencePct < 60 ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
+      </div>
+      <button class="btn small serve" data-act="takeReturn" data-id="${c.id}">Принять</button>
+    </div>`;
+  }
+
   if (c.consult){
     return `<div class="client consult" data-act="consult" data-id="${c.id}">
       <div class="cl-tap static">
@@ -939,7 +1014,7 @@ function clientCard(c){
 
   return `<div class="client ${sel ? 'sel' : ''} ${c.type} ${handsForMe ? 'ready' : ''}" data-act="pickClient" data-id="${c.id}">
     <button class="cl-tap" data-act="pickClient" data-id="${c.id}">
-      <div class="cl-code">${c.code} ${tags}</div>
+      <div class="cl-code">${c.code} ${tags}<span class="cl-left ${patiencePct < 30 ? 'bad' : patiencePct < 60 ? 'warn' : ''}" data-live="patn:${c.id}">${Math.max(0, Math.round(c.patience))} мин</span></div>
       <div class="bar"><i class="${patiencePct < 30 ? 'danger' : patiencePct < 60 ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
       ${sel && loc ? `<div class="cl-addr">${icon('pin')} ${esc(loc.address)}</div>` : ''}
       ${sel && !loc && !handsForMe ? `<div class="cl-addr bad">Посылки нет на полке</div>` : ''}
@@ -982,6 +1057,11 @@ function viewReport(){
         <div class="pnl-row total"><span>Итого за день</span><b class="${ds.net >= 0 ? 'good' : 'bad'}">${ds.net > 0 ? '+' : ''}${fmt(ds.net)} ₽</b></div>
       </div>
       ${ds.onPrepay ? `<div class="muted small" style="margin-bottom:6px">${icon('manager')} ${ds.onPrepay} сотрудник(ов) работают за счёт аванса — зарплата за них не списывалась.</div>` : ''}
+      ${(ds.returned || ds.packed || ds.shipped) ? `<div class="muted small ico-inline" style="margin:6px 0 2px; display:flex; gap:12px; flex-wrap:wrap">
+        ${ds.returned ? `<span>${icon('returns')} принято возвратов: ${ds.returned}</span>` : ''}
+        ${ds.shipped ? `<span>${icon('truck')} отправлено: ${ds.shipped}</span>` : ''}
+        ${ds.packed ? `<span>${icon('pack')} упаковано заказов: ${ds.packed}</span>` : ''}
+      </div>` : ''}
       <div class="muted small">${reportAdvice(r)}</div>
     </section>
 
@@ -1111,9 +1191,10 @@ function hintText(){
     return 'Проверьте прогноз и закупки, затем начинайте день.';
   }
   if (S.phase === 'day'){
+    const goal = `Выдано ${S.dayStats.issued} из ${Math.round(E.dayDemand(S))}`;
     const truck = S.trucks.find(t => t.arrived && t.left > 0);
     if (S.player.busy) return 'Вы обслуживаете клиента — подождите или прервите.';
-    if (truck) return 'Машина ждёт: принимайте посылки, потом раскладывайте.';
+    if (truck) return `${goal} · машина ждёт: принимайте посылки.`;
     if (S.receiving.length) return 'Выберите посылку и свободную ячейку — или «Разложить всё».';
     if (S.hands) return 'Посылка в руках: отдайте клиенту кнопкой «Выдать».';
     if (S.clients.length) return 'Тапните клиента — система покажет, где лежит его посылка.';
@@ -1159,6 +1240,41 @@ async function act(type, d){
     }
     case 'installHelp': U.installHelp = true; break;
     case 'closeInstall': U.installHelp = false; break;
+    case 'takeReturn': {
+      const r = E.takeReturn(S, d.id);
+      if (!r.ok) toast(r.msg || 'Нельзя', 'bad');
+      else { U.selClient = null; beep(600,0.05,'triangle'); toast(`Возврат: ${r.minutes} мин`); }
+      break;
+    }
+    case 'shipReturns': {
+      const r = E.shipReturns(S, true);
+      if (r.ok) toast(`Отправлено ${r.n} возврат(ов): +${fmt(r.fee)} ₽`, 'good');
+      else toast(r.msg || 'Нечего отправлять', 'bad');
+      break;
+    }
+    case 'setShift': {
+      const r = E.setShift(S, d.id, d.v);
+      if (r.ok) toast('Смена обновлена');
+      break;
+    }
+    case 'repair': {
+      const r = E.repair(S, d.id);
+      if (r.ok){ toast(`Отремонтировано за ${fmt(r.cost)} ₽`, 'good'); beep(680,0.06,'triangle'); }
+      else toast(r.msg || 'Нельзя', 'bad');
+      break;
+    }
+    case 'givePack': {
+      const r = E.giveToClient(S, d.id, true);
+      if (!r.ok) toast(r.msg || 'Нельзя', 'bad');
+      break;
+    }
+    case 'nextClient': {
+      const c = nextClient(S);
+      if (!c) { toast('Некого обслуживать', 'bad'); break; }
+      if (c.returnItem) act('takeReturn', { id: c.id });
+      else { U.selClient = c.id; U.selBox = null; beep(680,0.05); }
+      break;
+    }
     case 'fire': { const r = E.fire(S, d.id); if (!r.ok) toast(r.msg, 'bad'); break; }
     case 'loan': { const r = E.takeLoan(S, 20000); if (!r.ok) toast(r.msg, 'bad'); else beep(400,0.1,'sawtooth'); break; }
     case 'policy': {

@@ -457,6 +457,8 @@ p{margin:0 0 10px}
   box-shadow:0 10px 30px #00000080, 0 0 0 1px #00000040 inset;
   animation:abIn .18s ease-out;
 }
+/* регион перерисовывается при смене дела — анимация не должна перезапускаться */
+.actionbar{animation:none}
 @keyframes abIn{from{opacity:0; transform:translate(-50%, 8px)} to{opacity:1; transform:translate(-50%,0)}}
 .actionbar .ab-main{flex:1; min-width:0}
 .actionbar .ab-title{font-weight:700; font-size:13px; line-height:1.25; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
@@ -826,6 +828,54 @@ h2.sec{margin:26px 0 10px; font-size:12px; text-transform:uppercase; letter-spac
   .hud-right{gap:8px}
 }
 
+/* ============================================================
+   Новые механики: возвраты, смены, упаковка, починка
+   ============================================================ */
+.client.return{border-left:3px solid #a78bfa; background:linear-gradient(90deg, rgba(167,139,250,.10), transparent 60%)}
+.client .cl-left{
+  margin-left:auto; font-size:11px; font-weight:700; color:var(--muted);
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.client .cl-code{display:flex; align-items:center; gap:6px; font-size:14px}
+.client .cl-code .i{width:15px; height:15px; color:#c4b5fd}
+
+.pk.ret{background:linear-gradient(180deg, rgba(167,139,250,.22), rgba(167,139,250,.08));
+  border-color:color-mix(in srgb, #a78bfa 45%, transparent); color:#e9e3ff}
+
+.alert.badline{
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.35); color:#ffd0d0;
+}
+.alert.badline .i{width:16px; height:16px; color:#ff9b9b}
+.alert.badline .btn{margin-left:auto}
+
+/* смены */
+.staff-item.shiftable{flex-wrap:wrap}
+.seg.shift{display:flex; flex-wrap:nowrap; flex-basis:100%; width:100%; gap:3px; padding:3px; margin-top:8px;
+  border-radius:10px; background:rgba(255,255,255,.04); border:1px solid var(--line)}
+.seg.shift .seg-b{display:inline-flex; flex:1 1 0; min-width:0; align-items:center; justify-content:center; gap:6px;
+  min-height:36px; padding:0 8px; font-size:12px; border-radius:8px; font-weight:600}
+.seg.shift .seg-b.on{color:#fff}
+.seg.shift .seg-b .i{width:13px; height:13px}
+.staff-item .staff-right{min-width:96px}
+
+/* упаковка в панели дела */
+.ab-actions{display:flex; gap:8px; flex-shrink:0}
+.ab-actions .btn{min-height:38px}
+@media (max-width:520px){
+  .ab-actions{flex-direction:column; gap:6px}
+  .ab-actions .btn{min-height:36px; font-size:12.5px; padding:6px 12px}
+}
+
+/* карточки в колонке не растягиваются на всю высоту соседей */
+[data-r="returns"]{align-self:start}
+.ret-row{display:flex; flex-wrap:wrap; align-content:flex-start; align-items:flex-start; gap:6px; margin-top:8px}
+.ret-row .pk{min-height:0; height:auto}
+.seg.shift .seg-b{white-space:nowrap}
+
+.cl-left.warn{color:var(--warn)}
+.cl-left.bad{color:var(--bad)}
+
 </style>
 </head>
 <body>
@@ -859,6 +909,13 @@ const CFG = {
   PATIENCE_BASE: 120,       // игровых минут терпения
   UTIL_PER_DAY: 400,
   SEARCH_BASE: 14,          // игровых минут на поиск заказа
+  RET_CAP: 4,               // сколько возвратов влезает на стойку
+  RET_HOUR_MIN: 600,        // 19:00 — приезжает машина за возвратами
+  RET_SHIP_FEE: 25,         // платят за обработку возврата
+  RET_LATE_FINE: 80,        // штраф за неотправленный возврат
+  PACK_PRICE: 60,           // упаковка заказа
+  SHIFT_PART: 0.62,         // смена полдня стоит 62% оклада
+  BREAK_CHANCE: 0.10,       // шанс поломки техники за день
   NEG_DAYS_LIMIT: 3,
   DIRTY_TIRED: 70,
   PREPAY_DAYS: 10,         // аванс за первые дни работы при найме
@@ -991,6 +1048,8 @@ function createGame({ brandId, premiseId, seed }){
     fittingBusy: [],
     shelves: [],
     receiving: [],
+    returns: [],            // принятые возвраты, ждут машину
+    broken: {},             // сломанная техника: { printer:true }
     clients: [],
     staff: [],
     candidates: [],
@@ -1023,6 +1082,7 @@ function freshDayStats(){
     revenue:0, tips:0, fines:0, issued:0, missed:0, consults:0,
     slaSum:0, arrivals:0, accepted:0, payroll:0, rent:0, util:0, tax:0, loan:0, net:0,
     peakQueue:0, mistakes:0, tryon:0, events:0,
+    returned:0, packed:0, shipped:0, retFines:0, repairs:0,
   };
 }
 
@@ -1034,6 +1094,36 @@ function pushLog(S, text, type='info'){
 }
 
 /* ---------------- магазин / люди ---------------- */
+/* ---------------- поломки техники ---------------- */
+const FRAGILE_TECH = ['scanner','printer','terminal','coffee'];
+
+function brokenItems(S){
+  return Object.keys(S.broken || {}).filter(id => S.broken[id] && S.owned[id]);
+}
+function repairCost(S, id){
+  const it = ITEMS[id];
+  return it ? Math.round(it.cost * 0.3 / 50) * 50 : 0;
+}
+function repair(S, id){
+  if (!S.broken[id]) return { ok:false, msg:'Не сломано' };
+  const cost = repairCost(S, id);
+  if (S.money < cost) return { ok:false, msg:`Нужно ${fmt(cost)} ₽` };
+  S.money -= cost;
+  delete S.broken[id];
+  S.dayStats.repairs += cost;
+  pushLog(S, `${ITEMS[id].name} отремонтирован за ${fmt(cost)} ₽.`, 'good');
+  return { ok:true, cost };
+}
+function rollBreakdowns(S){
+  S.broken = S.broken || {};
+  const candidates = FRAGILE_TECH.filter(id => S.owned[id] && !S.broken[id]);
+  if (!candidates.length) return;
+  if (!chance(S, CFG.BREAK_CHANCE)) return;
+  const id = pick(S, candidates);
+  S.broken[id] = true;
+  pushLog(S, `Сломалась техника: ${ITEMS[id].name}. Работает хуже — почините в «Складе».`, 'bad');
+}
+
 function itemLocked(S, id){
   const it = ITEMS[id];
   if (!it) return true;
@@ -1067,6 +1157,29 @@ function buy(S, id){
   return { ok:true };
 }
 
+/* ---------------- смены ---------------- */
+const SHIFTS = {
+  full: { name:'Полный день', short:'09–21', pay:1.00 },
+  am:   { name:'Утро',        short:'09–15', pay:0.62 },
+  pm:   { name:'Вечер',       short:'15–21', pay:0.62 },
+};
+function shiftPay(shift){ return (SHIFTS[shift] || SHIFTS.full).pay; }
+function onShiftNow(S, st){
+  const sh = st.shift || 'full';
+  if (sh === 'full') return true;
+  if (sh === 'am') return S.minutes < 360;
+  if (sh === 'pm') return S.minutes >= 360;
+  return true;
+}
+function setShift(S, id, shift){
+  const st = S.staff.find(x => x.id === id);
+  if (!st || !SHIFTS[shift]) return { ok:false };
+  st.shift = shift;
+  st.onShift = onShiftNow(S, st);
+  return { ok:true };
+}
+function shiftSalary(st){ return Math.round(st.salary * shiftPay(st.shift)); }
+
 function hireCost(S, role){
   const r = ROLES[role];
   return (r.onboard || 0) + r.salary * CFG.PREPAY_DAYS;
@@ -1095,7 +1208,7 @@ function hire(S, role){
   const cost = hireCost(S, role);
   S.money -= cost;
   S.candidates = S.candidates.filter(c2 => c2.id !== cand.id);
-  S.staff.push({ ...cand, id:'e'+(S.aid++), mood:70, fatigue:0, task:null, onShift:true, daysWorked:0, prepay: CFG.PREPAY_DAYS });
+  S.staff.push({ ...cand, id:'e'+(S.aid++), mood:70, fatigue:0, task:null, shift:'full', onShift:true, daysWorked:0, prepay: CFG.PREPAY_DAYS });
   pushLog(S, `Нанят ${ROLES[role].name}: ${cand.name} (${cand.traitName}). Оформление и аванс: −${fmt(cost)} ₽`, 'hire');
   buildCandidates(S);
   return { ok:true };
@@ -1151,7 +1264,7 @@ function dayDemand(S){
   const dowF = [1.0, 0.95, 0.95, 1.0, 1.1, 1.25, 0.85][dow];  // пн..вс
   const growth = 1 + Math.min(0.45, (S.day - 1) * 0.025);
   let d = 26 * p.traffic * b.traffic * npsFactor(S) * dowF * growth;
-  if (S.owned.coffee) d *= ITEMS.coffee.traffic;
+  if (S.owned.coffee && !(S.broken && S.broken.coffee)) d *= ITEMS.coffee.traffic;
   return d;
 }
 
@@ -1216,7 +1329,8 @@ function startDay(S){
   S.trucks = [];
   S.event = null;
 
-  const total = Math.max(8, Math.round(dayDemand(S) * 0.95));
+  // посылок не меньше, чем клиентов: клиент приходит только под свою посылку
+  const total = Math.max(9, Math.round(dayDemand(S)));
   const parts = [0.6, 0.4];
   const times = [25, 390];
   parts.forEach((pct, i) => {
@@ -1229,8 +1343,9 @@ function startDay(S){
     });
   });
 
-  S.staff.forEach(st => { st.task = null; st.onShift = true; st.fatigue = Math.max(0, st.fatigue - 20); });
+  S.staff.forEach(st => { st.task = null; st.shift = st.shift || 'full'; st.onShift = onShiftNow(S, st); st.fatigue = Math.max(0, st.fatigue - 20); });
   S.forecast = forecastFor(S);
+  rollBreakdowns(S);
   pushLog(S, `День ${S.day}: открываемся. Прогноз ${Math.round(dayDemand(S))} клиентов.`, 'info');
   scheduleEvents(S);
 }
@@ -1264,18 +1379,14 @@ function stepMinute(S){
   for (const tr of S.trucks){
     if (!tr.arrived && S.minutes >= tr.arriveAt){
       tr.arrived = true;
+      // машина ждёт и не выбрасывает посылки: сколько влезает — принимайте,
+      // остальное уедет только если простой до конца стоянки
       const room = Math.max(0, capacity(S).free - S.receiving.length);
-      if (tr.left > room){
-        const dropped = tr.left - room;
-        tr.left = room;
-        if (dropped > 0){
-          S.dayStats.fines += fine(S, dropped * 120);
-          S.nps = clamp(S.nps - 0.02, 0, 5);
-          pushLog(S, `Склад переполнен: ${dropped} посылок не влезли, машина увезла их назад. Штраф.`, 'bad');
-        }
+      if (tr.left > 0){
+        pushLog(S, room > 0
+          ? `Пришла машина: ${tr.left} посылок. Принимайте!`
+          : `Машина пришла, но зона приёмки занята — освободите место.`, room > 0 ? 'truck' : 'bad');
       }
-      if (tr.left > 0) pushLog(S, `Пришла машина: ${tr.left} посылок. Принимайте!`, 'truck');
-      else pushLog(S, 'Машина приехала и уехала: некуда разгружать.', 'bad');
     }
     if (tr.arrived && tr.left > 0){
       tr.waitLeft--;
@@ -1291,6 +1402,19 @@ function stepMinute(S){
     }
   }
 
+  // машина за возвратами
+  if (S.minutes === CFG.RET_HOUR_MIN && S.returns.length) shipReturns(S, true);
+
+  // смены: часть команды приходит/уходит по расписанию
+  for (const st of S.staff){
+    const now = onShiftNow(S, st);
+    if (now !== st.onShift){
+      if (!now && st.task){ st.task = null; }
+      st.onShift = now;
+      pushLog(S, now ? `${st.name} начал(а) смену` : `${st.name} ушёл(ла) со смены`, 'info');
+    }
+  }
+
   // клиенты
   const hour = Math.floor(S.minutes / 60);
   const hw = HOUR_W[Math.min(11, Math.max(0, hour))];
@@ -1303,9 +1427,13 @@ function stepMinute(S){
   const gone = S.clients.filter(c => c.patience <= 0);
   if (gone.length){
     for (const c of gone){
-      S.nps = clamp(S.nps - (c.consult ? 0.008 : 0.04), 0, 5);
-      if (!c.consult){ S.dayStats.missed++; S.kpiWeek.missed++; }
-      pushLog(S, c.consult ? `Клиент ушёл, не дождавшись консультации.` : `Клиент ушёл без заказа ${c.code}.`, 'bad');
+      // возврат и консультация — не «упущенный заказ», только лёгкий минус к NPS
+      const soft = c.consult || c.returnItem;
+      S.nps = clamp(S.nps - (soft ? 0.008 : 0.04), 0, 5);
+      if (!soft){ S.dayStats.missed++; S.kpiWeek.missed++; }
+      pushLog(S, c.consult ? `Клиент ушёл, не дождавшись консультации.`
+               : c.returnItem ? `Клиент с возвратом ${c.returnCode} ушёл.`
+               : `Клиент ушёл без заказа ${c.code}.`, 'bad');
     }
     S.clients = S.clients.filter(c => c.patience > 0);
   }
@@ -1329,14 +1457,40 @@ function stepMinute(S){
 function spawnClient(S){
   const busy = new Set(S.clients.map(c => c.code).filter(Boolean));
   const available = storedPackages(S).filter(p => !busy.has(p.code));
-  S.dayStats.arrivals++;
-  S.kpiWeek.arrivals++;
   const patienceMax = CFG.PATIENCE_BASE * patienceMult(S) * rr(S, 0.85, 1.15);
 
-  if (available.length && chance(S, 0.88)){
+  // возврат: клиент принёс посылку назад — отдельная работа, не требует места на полке
+  if (chance(S, 0.09) && S.returns.length + S.clients.filter(c => c.returnItem).length < CFG.RET_CAP){
+    S.dayStats.arrivals++;
+    S.kpiWeek.arrivals++;
+    S.clients.push({
+      id: 'cl' + (S.aid++), code: null, consult:false, returnItem:true, returnCode: codeGen(S),
+      type:'normal', tryon:false, patience: patienceMax * 1.35, maxPatience: patienceMax * 1.35,
+      arrivedAt: S.minutes,
+    });
+    return;
+  }
+
+  // вопрос в зале — редко и только когда есть чем заняться
+  if (available.length && chance(S, 0.05) && !S.clients.some(c => c.consult)){
+    S.dayStats.arrivals++;
+    S.kpiWeek.arrivals++;
+    S.clients.push({
+      id: 'cl' + (S.aid++), code: null, consult:true, type:'consult',
+      patience: patienceMax, maxPatience: patienceMax, arrivedAt: S.minutes,
+    });
+    return;
+  }
+
+  // клиент приходит только под свою посылку: нет посылок — нет клиента
+  if (!available.length) return;
+
+  S.dayStats.arrivals++;
+  S.kpiWeek.arrivals++;
+  {
     const pkg = available[ri(S, 0, available.length - 1)];
     const r = rnd(S);
-    let type = 'normal', mood = 0;
+    let type = 'normal';
     if (r > 0.94){ type = 'scandal'; }
     else if (r > 0.78){ type = 'hurry'; }
     S.clients.push({
@@ -1344,11 +1498,6 @@ function spawnClient(S){
       patience: patienceMax * (type === 'hurry' ? 0.6 : type === 'scandal' ? 0.8 : 1),
       maxPatience: patienceMax * (type === 'hurry' ? 0.6 : type === 'scandal' ? 0.8 : 1),
       arrivedAt: S.minutes,
-    });
-  } else {
-    S.clients.push({
-      id: 'cl' + (S.aid++), code: null, consult:true, type:'consult',
-      patience: patienceMax, maxPatience: patienceMax, arrivedAt: S.minutes,
     });
   }
 }
@@ -1573,6 +1722,7 @@ function fetchMinutes(S, shelfId){
   const d = shelfDistance(S, shelfId);
   let t = (d >= 99) ? 12 : 2 + d * 0.45;
   if (S.owned.scanner) t -= 1;
+  if (S.broken && S.broken.scanner) t += 2.5;      // сломанный сканер — ищите глазами
   if (S.fatigue > CFG.DIRTY_TIRED) t += 2;
   t /= staffSpeedMult(S);
   return Math.max(2, Math.round(t));
@@ -1593,7 +1743,7 @@ function startFetch(S, clientId){
 }
 
 /* шаг 2: отдать клиенту */
-function giveToClient(S, clientId){
+function giveToClient(S, clientId, withPack){
   if (S.phase !== 'day') return { ok:false };
   if (!S.hands) return { ok:false, msg:'В руках нет посылки' };
   if (S.player.busy) return { ok:false, msg:'Вы уже в пути' };
@@ -1604,10 +1754,63 @@ function giveToClient(S, clientId){
     S.hands = null;
     return { ok:false, msg:'Клиент ушёл — посылка вернулась на полку' };
   }
-  const t = HANDOVER_MIN;
-  S.player.busy = { kind:'handover', clientId, t, total:t };
+  const pack = !!withPack && canPack(S);
+  const t = HANDOVER_MIN + (pack ? 1 : 0);
+  S.player.busy = { kind:'handover', clientId, t, total:t, pack };
   return { ok:true, minutes:t, started:true };
 }
+
+/* ---------------- возвраты ---------------- */
+function returnMinutes(S){
+  let t = 2;
+  if (S.owned.printer && !S.broken.printer) t -= 1;
+  return Math.max(1, t);
+}
+function takeReturn(S, clientId){
+  if (S.phase !== 'day') return { ok:false };
+  if (S.player.busy) return { ok:false, msg:'Вы уже заняты' };
+  if (tired(S)) return { ok:false, msg:'Вы вымотаны' };
+  const c = S.clients.find(x => x.id === clientId);
+  if (!c || !c.returnItem) return { ok:false, msg:'Это не возврат' };
+  if (S.returns.length >= CFG.RET_CAP) return { ok:false, msg:`Стойка возвратов занята (${CFG.RET_CAP})` };
+  const t = returnMinutes(S);
+  S.player.busy = { kind:'ret', clientId, t, total:t };
+  return { ok:true, minutes:t };
+}
+function finishReturn(S, busy){
+  const c = S.clients.find(x => x.id === busy.clientId);
+  S.clients = S.clients.filter(x => x.id !== busy.clientId);
+  S.returns.push({ id:'r'+(S.aid++), code: c ? c.returnCode : codeGen(S), from: c ? c.code || 'клиент' : 'клиент', at:S.minutes });
+  S.dayStats.returned++;
+  S.nps = clamp(S.nps + 0.015, 0, 5);
+  addXp(S, 6);
+  pushLog(S, `Принят возврат ${S.returns[S.returns.length-1].code}. Машина заберёт в 19:00.`, 'good');
+}
+
+function shipReturns(S, force){
+  if (!S.returns.length) return { ok:false, msg:'Возвратов нет' };
+  if (!force && S.minutes < CFG.RET_HOUR_MIN) return { ok:false, msg:'Машина за возвратами приезжает в 19:00' };
+  const n = S.returns.length;
+  const fee = n * CFG.RET_SHIP_FEE;
+  S.money += fee;
+  S.dayStats.revenue += fee;
+  S.dayStats.shipped += n;
+  S.returns = [];
+  pushLog(S, `Возвраты отправлены: ${n} шт. +${fmt(fee)} ₽ за обработку.`, 'good');
+  return { ok:true, n, fee };
+}
+
+function packOrder(S, pkg){
+  S.money += CFG.PACK_PRICE;
+  S.dayStats.revenue += CFG.PACK_PRICE;
+  S.dayStats.packed++;
+  S.nps = clamp(S.nps + 0.01, 0, 5);
+  addXp(S, 3);
+  pushLog(S, `Упаковали ${pkg.code}: +${CFG.PACK_PRICE} ₽ за услугу.`, 'good');
+}
+
+/* упаковка заказа: платная услуга при выдаче (нужен принтер) */
+function canPack(S){ return !!S.owned.printer && !S.broken.printer; }
 
 function returnHands(S){
   if (!S.hands) return { ok:false, msg:'Руки пусты' };
@@ -1750,6 +1953,8 @@ function completePlayerTask(S){
     return;
   }
 
+  if (b.kind === 'ret'){ finishReturn(S, b); return; }
+
   if (b.kind === 'handover'){
     const pkg = S.hands;
     S.hands = null;
@@ -1757,6 +1962,7 @@ function completePlayerTask(S){
     const c = S.clients.find(x => x.id === b.clientId);
     if (!c){ if (pkg) returnToShelf(S, pkg); return; }
     spendFatigue(S, 1);
+    if (b.pack) packOrder(S, pkg);
     issueInternal(S, c, pkg, null);
   }
 }
@@ -1764,7 +1970,8 @@ function completePlayerTask(S){
 function payoutMult(S, pkg){
   const b = brandOf(S), p = premOf(S);
   let m = p.payout * b.payout * (0.70 + 0.30 * compliance(S));
-  if (S.owned.terminal) m *= ITEMS.terminal.pay;
+  if (S.owned.terminal && !(S.broken && S.broken.terminal)) m *= ITEMS.terminal.pay;
+  else if (S.broken && S.broken.terminal) m *= 0.94;   // без терминала часть оплат «мимо кассы»
   m *= 1 + (S.lvl - 1) * 0.05;
   m *= contractOf(S).pay;
   return m;
@@ -2135,7 +2342,7 @@ function endDay(S){
   let payroll = 0, onPrepay = 0;
   for (const st of S.staff){
     if ((st.prepay || 0) > 0){ st.prepay--; onPrepay++; }
-    else payroll += st.salary;
+    else payroll += Math.round(st.salary * shiftPay(st.shift));
   }
   S.dayStats.onPrepay = onPrepay;
   const rent = p.rent;
@@ -2143,6 +2350,15 @@ function endDay(S){
   const loanPay = Math.round(S.debt * CFG.LOAN_RATE);
   const gross = ds.revenue;
   const tax = S.day % 7 === 0 ? Math.round(gross * CFG.TAX_RATE) : 0;
+
+  // неотправленные возвраты — убыток
+  if (S.returns && S.returns.length){
+    const late = S.returns.length * CFG.RET_LATE_FINE;
+    ds.fines += late;
+    ds.retFines = late;
+    pushLog(S, `${S.returns.length} возврат(ов) не ушли вовремя. Списано ${fmt(late)} ₽.`, 'bad');
+    S.returns = [];
+  }
 
   const costs = rent + util + payroll + loanPay + tax + ds.fines;
   S.money -= costs;
@@ -2223,7 +2439,7 @@ function nextDay(S){
   S.report = null;
   S.dayStats = freshDayStats();
   S.recalcDone = false;
-  S.staff.forEach(st => { st.task = null; st.onShift = true; });
+  S.staff.forEach(st => { st.task = null; st.onShift = onShiftNow(S, st); });
   recalcForecast(S);
   buildCandidates(S);
   pushLog(S, `День ${S.day}. Утро. Касса: ${fmt(S.money)} ₽.`, 'info');
@@ -2240,6 +2456,9 @@ function deserialize(str){
   try {
     const S = JSON.parse(str);
     if (!S || typeof S !== 'object' || !S.day) return null;
+    S.returns = S.returns || [];
+    S.broken = S.broken || {};
+    S.staff = (S.staff || []).map(st => ({ ...st, shift: st.shift || 'full' }));
     return S;
   } catch(e){ return null; }
 }
@@ -2274,7 +2493,7 @@ function dayLabel(S){
 
 const ZONES = ZONE_LABEL;
 
-return { CFG, BRANDS, PREMISES, ITEMS, ROLES, CONTRACTS, rnd, brandOf, premOf, contractOf, compliance, slotsUsed, capacity, zoneOf, storedPackages, findCellByCode, createGame, fmt, pushLog, itemLocked, canBuy, buy, hireCost, hireBreakdown, canHire, hire, fire, dayDemand, recalcForecast, forecastFor, expirePackages, layoutProblems, startDay, stepMinute, searchMinutes, acceptBox, placeBox, sleepTired, shelfName, cellAddress, clientLocation, fetchMinutes, HANDOVER_MIN, startFetch, giveToClient, returnHands, consult, playerServiceMinutes, cancelService, payoutMult, fixtureAt, canPlaceAt, freeArea, placeFixture, canPlaceIgnoring, moveFixture, removeFixture, autoLayout, gridPath, doorCell, shelfPath, playerCell, staffCell, shelfDistance, loanLimit, takeLoan, xpNeed, addXp, resolveEvent, autoResolveEvent, endDay, nextDay, serialize, deserialize, CLAMP, payrollNow, contractStatus, dayLabel, ZONES };
+return { CFG, BRANDS, PREMISES, ITEMS, ROLES, CONTRACTS, rnd, brandOf, premOf, contractOf, compliance, slotsUsed, capacity, zoneOf, storedPackages, findCellByCode, createGame, fmt, pushLog, brokenItems, repairCost, repair, itemLocked, canBuy, buy, SHIFTS, shiftPay, onShiftNow, setShift, shiftSalary, hireCost, hireBreakdown, canHire, hire, fire, dayDemand, recalcForecast, forecastFor, expirePackages, layoutProblems, startDay, stepMinute, searchMinutes, acceptBox, placeBox, sleepTired, shelfName, cellAddress, clientLocation, fetchMinutes, HANDOVER_MIN, startFetch, giveToClient, returnMinutes, takeReturn, shipReturns, canPack, returnHands, consult, playerServiceMinutes, cancelService, payoutMult, fixtureAt, canPlaceAt, freeArea, placeFixture, canPlaceIgnoring, moveFixture, removeFixture, autoLayout, gridPath, doorCell, shelfPath, playerCell, staffCell, shelfDistance, loanLimit, takeLoan, xpNeed, addXp, resolveEvent, autoResolveEvent, endDay, nextDay, serialize, deserialize, CLAMP, payrollNow, contractStatus, dayLabel, ZONES };
 })();
 /* Набор векторных иконок (24×24, обводка currentColor).
    Инлайн-SVG: работает без сети и в песочнице предпросмотра. */
@@ -2330,6 +2549,12 @@ const ICON_PATHS = {
   user: '<circle cx="12" cy="8" r="3.4"/><path d="M5.4 20.4a6.6 6.6 0 0 1 13.2 0"/>',
   loader: '<circle cx="12" cy="7.4" r="3.2"/><path d="M6.2 20.4v-1.8a4 4 0 0 1 4-4h3.6a4 4 0 0 1 4 4v1.8"/><path d="M4.4 12.4 7 15l4.4-2.2"/>',
   manager: '<rect x="3" y="8.2" width="18" height="11.4" rx="2.4"/><path d="M9 8.2V6.4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v1.8"/><path d="M3 13.2h18"/>',
+  /* новые механики */
+  returns: '<path d="M3.4 9.2a9 9 0 0 1 15.4-3.4"/><path d="M18.8 2.9v3.2h-3.2"/><path d="M20.6 14.8a9 9 0 0 1-15.4 3.4"/><path d="M5.2 21.1v-3.2h3.2"/><path d="M9.6 12.4l2 2 3.2-3.6"/>',
+  wrench: '<path d="M14.7 6.3a3.6 3.6 0 0 1 4.9 4.9l-1.5-1.5-3.4-3.4z"/><path d="M13.2 7.8 4.9 16.1a2.1 2.1 0 1 0 3 3l8.3-8.3"/><circle cx="5.9" cy="18.1" r=".9"/>',
+  pack: '<path d="M3.4 7.6 12 3l8.6 4.6v8.8L12 21l-8.6-4.6z"/><path d="M3.4 7.6 12 12.2l8.6-4.6M12 12.2V21"/><path d="M7.7 5.3 16.3 9.9v3.4"/>',
+  sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4 17 7M7 17l-1.6 1.6"/>',
+  moon: '<path d="M20.2 14.6A8.4 8.4 0 0 1 9.4 3.8a8.6 8.6 0 1 0 10.8 10.8z"/>',
   sparkle: '<path d="M12 3.2l1.9 4.9 4.9 1.9-4.9 1.9L12 16.8l-1.9-4.9-4.9-1.9 4.9-1.9L12 3.2z"/><path d="M18.6 16.4l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z"/>',
   chart: '<path d="M4 20V4"/><path d="M4 20h16"/><rect x="7.4" y="12" width="3.4" height="5.2" rx="1"/><rect x="13" y="8.2" width="3.4" height="9" rx="1"/>',
   play: '<path d="M8 5.6 18.4 12 8 18.4z"/>',
@@ -2645,8 +2870,13 @@ function liveUpdate(){
       set('[data-live="truck-t"]', `осталось ${Math.max(0, tr.waitLeft)} мин`);
       width('[data-live="truck-bar"]', pct(tr.waitLeft, tr.waitTotal || 300));
     }
+    if (S.clients.length){
+      const nx = [...S.clients].sort((a,b) => a.patience - b.patience)[0];
+      set('[data-live="next-wait"]', String(Math.max(0, Math.round(nx.patience))));
+    }
     for (const c of S.clients){
       width(`[data-live="pat:${c.id}"]`, pct(c.patience, c.maxPatience));
+      set(`[data-live="patn:${c.id}"]`, Math.max(0, Math.round(c.patience)) + ' мин');
     }
     const b = S.player.busy;
     if (b){
@@ -2803,8 +3033,8 @@ function viewPlan(){
           <div class="muted small">${b.name} · ${p.name} · ${new Date().getDay() ? '' : ''}${['пн','вт','ср','чт','пт','сб','вс'][(S.day-1)%7]}</div>
         </div>
         <div class="brief-nums">
-          <div class="bn"><b>${expected}</b><span>прогноз клиентов</span></div>
-          <div class="bn"><b>${Math.round(expected*0.95)}</b><span>посылок привезут</span></div>
+          <div class="bn"><b>${Math.min(expected, truckPlan(S))}</b><span>прогноз клиентов</span></div>
+          <div class="bn"><b>${truckPlan(S)}</b><span>посылок привезут</span></div>
           <div class="bn"><b>${cap.free}</b><span>свободно ячеек</span></div>
         </div>
       </div>
@@ -3015,14 +3245,17 @@ function shopView(){
       const can = !locked && !(it.once && owned) && !noMoney && !noSpace;
       let btn;
       const inPalette = (S.unplaced || []).includes(id);
-      if (locked) btn = `<span class="muted small">с ур. ${it.lvl}</span>`;
+      const broken = S.broken[id] && owned;
+      if (broken) btn = `<button class="btn small ${S.money >= E.repairCost(S,id) ? '' : 'dis'}" data-act="repair" data-id="${id}">${icon('wrench')} ${fmt(E.repairCost(S,id))} ₽</button>`;
+      else if (locked) btn = `<span class="muted small">с ур. ${it.lvl}</span>`;
       else if (it.once && owned) btn = `<span class="ok small">${icon('check')} куплено</span>`;
       else btn = `<button class="btn small ${can ? '' : 'dis'}" data-act="buy" data-id="${id}" ${can ? '' : 'disabled'}>${inPalette ? 'ещё' : ''} ${fmt(it.cost)} ₽</button>`;
       return `
       <div class="item ${locked ? 'locked' : ''}">
         <div class="item-icon">${itemIcon(id)}</div>
         <div class="item-main">
-          <div class="item-name">${it.name} ${owned > 1 ? `<span class="chip">×${owned}</span>` : ''}</div>
+          <div class="item-name">${it.name} ${owned > 1 ? `<span class="chip">×${owned}</span>` : ''}
+            ${S.broken[id] && owned ? '<span class="tag bad">сломано</span>' : ''}</div>
           <div class="muted small">${it.desc}${it.physical ? ` · ${it.size.w}×${it.size.h} кл.` : ''}</div>
         </div>
         ${btn}
@@ -3031,8 +3264,15 @@ function shopView(){
   </div>`;
 }
 
+/* сколько посылок реально привезут за день (ровно как в движке) */
+function truckPlan(S){
+  const total = Math.max(9, Math.round(E.dayDemand(S)));
+  const boxes = [0.6, 0.4].map(pct => Math.max(2, Math.round(total * pct)));
+  return boxes[0] + boxes[1];
+}
+
 function staffView(){
-  const payroll = S.staff.reduce((a, st) => a + st.salary, 0);
+  const payroll = S.staff.reduce((a, st) => a + E.shiftSalary(st), 0);
   const roles = Object.keys(E.ROLES);
   return `
   <div class="row-between">
@@ -3040,16 +3280,21 @@ function staffView(){
     <span class="muted small">ФОТ ${fmt(payroll)} ₽/день</span>
   </div>
   ${S.staff.length ? `<div class="staff-list">${S.staff.map(st => `
-    <div class="staff-item">
+    <div class="staff-item shiftable">
       <div class="avatar">${st.name[0]}</div>
       <div class="item-main">
-        <div class="item-name">${st.name} <span class="muted small">${E.ROLES[st.role].name}</span></div>
+        <div class="item-name">${st.name} <span class="muted small">${E.ROLES[st.role].name}</span>
+          ${S.phase === 'day' && !st.onShift ? '<span class="tag">не на смене</span>' : ''}</div>
         <div class="muted small">${st.traitName} · скорость ${st.sp}/10 · аккуратность ${st.ac} · сервис ${st.sv}</div>
         <div class="bar"><i style="width:${st.mood}%" class="${st.mood < 35 ? 'danger' : st.mood < 60 ? 'warn' : ''}"></i></div>
       </div>
       <div class="staff-right">
-        <div class="small">${(st.prepay||0) > 0 ? `аванс: ${st.prepay} дн.` : fmt(st.salary) + ' ₽/день'}</div>
+        <div class="small">${(st.prepay||0) > 0 ? `аванс: ${st.prepay} дн.` : fmt(E.shiftSalary(st)) + ' ₽/день'}</div>
         <button class="btn ghost small" data-act="fire" data-id="${st.id}">уволить</button>
+      </div>
+      <div class="seg shift">
+        ${Object.keys(E.SHIFTS).map(k => `<button class="seg-b ${(st.shift||'full') === k ? 'on' : ''}" data-act="setShift" data-id="${st.id}" data-v="${k}">
+          ${icon(k === 'am' ? 'sun' : k === 'pm' ? 'moon' : 'clock')} ${E.SHIFTS[k].short}</button>`).join('')}
       </div>
     </div>`).join('')}</div>` : `<div class="empty">Пока вы работаете один. Наймите грузчика — он разгружает поставки, или продавца — он выдаёт заказы.</div>`}
 
@@ -3120,6 +3365,10 @@ function viewDay(){
   ${viewHud()}
   <main class="wrap day${ab ? ' with-bar' : ''}">
     <div data-r="alerts">
+    ${E.brokenItems(S).length ? `<div class="alert badline">
+        ${icon('wrench')} Сломано: ${E.brokenItems(S).map(id => E.ITEMS[id].name).join(', ')}
+        <button class="btn ghost small" data-act="tab" data-id="policy">починить</button>
+      </div>` : ''}
     ${S.fatigue > 60 ? `<div class="alert warnline">Усталость ${Math.round(S.fatigue)}% — ошибки вероятнее, обслуживание медленнее.</div>` : ''}
     ${busy ? `<div class="alert busyline">
         ${icon(busy.kind === 'fetch' ? 'pin' : 'check')} ${busy.kind === 'fetch' ? 'Иду за посылкой' : 'Отдаю заказ'} <b>${busyClient ? esc(busyClient.code) : ''}</b>
@@ -3146,6 +3395,17 @@ function viewDay(){
           <div class="bar thin"><i class="${truck.waitLeft < 60 ? 'danger' : 'warn'}" data-live="truck-bar" style="width:${pct(truck.waitLeft, 300)}%"></i></div>
         </div>` : ''}</div>
 
+        <div class="card pad" data-r="returns">
+          <div class="row-between">
+            <h3>${icon('returns')} Возвраты <span class="muted small">${S.returns.length}/${E.CFG.RET_CAP}</span></h3>
+            <span class="muted small">машина в 19:00</span>
+          </div>
+          ${S.returns.length ? `<div class="ret-row">${S.returns.map(r => `<span class="pk ret">${esc(r.code)}</span>`).join('')}</div>` : emptyBox('Пока пусто. Клиент с возвратом приходит сам.')}
+          ${S.minutes >= E.CFG.RET_HOUR_MIN && S.returns.length
+            ? `<button class="btn small" data-act="shipReturns">Отправить ${S.returns.length} шт. (+${S.returns.length * E.CFG.RET_SHIP_FEE} ₽)</button>`
+            : (S.returns.length ? `<div class="muted small">Отправятся сами в 19:00 · ${S.returns.length * E.CFG.RET_SHIP_FEE} ₽ за обработку</div>` : '')}
+        </div>
+
         <div class="card pad" data-r="receiving">
           <div class="row-between">
             <h3>${icon('inbox')} Зона приёмки <span class="muted small">${S.receiving.length}/${E.CFG.RECV_MAX}</span></h3>
@@ -3166,7 +3426,7 @@ function viewDay(){
             <h3>${icon('users')} Очередь <span class="muted small">${S.clients.length}</span></h3>
             <span class="muted small">продавцов: ${S.staff.filter(s => s.role === 'seller').length}</span>
           </div>
-          ${S.clients.length ? `<div class="queue">${S.clients.slice(0, 8).map(c => clientCard(c)).join('')}</div>` : `<div class="empty small">Пока никого. Передохните.</div>`}
+          ${S.clients.length ? `<div class="queue">${[...S.clients].sort((a,b) => a.patience - b.patience).slice(0, 8).map(c => clientCard(c)).join('')}</div>` : `<div class="empty small">Пока никого. Передохните.</div>`}
           ${S.clients.length > 8 ? `<div class="muted small">и ещё ${S.clients.length - 8}…</div>` : ''}
         </div>
 
@@ -3198,6 +3458,23 @@ function viewDay(){
   </main>`;
 }
 
+/* ближайший клиент, которого можно обслужить прямо сейчас */
+function nextClient(S){
+  const busy = new Set(S.staff.map(x => x.task && x.task.kind === 'serve' ? x.task.clientId : null).filter(Boolean));
+  const ready = S.clients
+    .filter(c => !c.consult && !busy.has(c.id))
+    .map(c => {
+      if (c.returnItem) return { c, urgent: c.patience };
+      const loc = E.clientLocation(S, c.id);
+      if (!loc) return null;
+      const walk = E.fetchMinutes(S, loc.shelfId);
+      return { c, urgent: c.patience - walk * 0.6 };
+    })
+    .filter(Boolean)
+    .sort((a,b) => a.urgent - b.urgent);
+  return ready.length ? ready[0].c : null;
+}
+
 /* панель текущего дела: всегда под рукой, не надо искать клиента на экране */
 function actionBar(){
   const b = S.player.busy;
@@ -3207,9 +3484,11 @@ function actionBar(){
   let body = '';
   if (b){
     const who = S.clients.find(c => c.id === b.clientId);
-    const label = b.kind === 'fetch' ? icon('pin') + ' Иду за посылкой' : icon('check') + ' Несу заказ клиенту';
+    const label = b.kind === 'fetch' ? icon('pin') + ' Иду за посылкой'
+                : b.kind === 'ret' ? icon('returns') + ' Оформляю возврат'
+                : icon('check') + ' Несу заказ клиенту';
     body = `<div class="ab-main">
-        <div class="ab-title">${label}${who ? ' · ' + esc(who.code) : ''}</div>
+        <div class="ab-title">${label}${who ? ' · ' + esc(who.code || who.returnCode || '') : ''}</div>
         <div class="bar thin"><i data-live="ab-bar" style="width:${pct(b.total - b.t, b.total)}%"></i></div>
       </div>
       <div class="ab-time" data-live="ab-t">${Math.max(0, Math.ceil(b.t))} мин</div>`;
@@ -3219,7 +3498,10 @@ function actionBar(){
         <div class="ab-title">${icon('box')} В руках ${esc(S.hands.code)}</div>
         <div class="small muted">${c ? 'Несите клиенту' : 'Клиент ушёл — верните на полку'}</div>
       </div>
-      ${c ? `<button class="btn primary" data-act="give" data-id="${c.id}">Выдать</button>`
+      ${c ? `<div class="ab-actions">
+              ${E.canPack(S) ? `<button class="btn" data-act="givePack" data-id="${c.id}">${icon('pack')} Упаковать +${E.CFG.PACK_PRICE} ₽</button>` : ''}
+              <button class="btn primary" data-act="give" data-id="${c.id}">Выдать</button>
+            </div>`
           : `<button class="btn ghost" data-act="returnHands">На полку</button>`}`;
   } else if (sel && loc){
     body = `<div class="ab-main">
@@ -3233,7 +3515,13 @@ function actionBar(){
         <div class="small muted">Клиент ${esc(sel.code)} ждёт</div>
       </div>`;
   } else {
-    return '';
+    const next = nextClient(S);
+    if (!next || S.phase !== 'day') return '';
+    body = `<div class="ab-main">
+        <div class="ab-title">${icon('chevron')} Следующий клиент</div>
+        <div class="small muted">${esc(next.code || next.returnCode || 'Клиент')} · ждёт <span data-live="next-wait">${Math.max(0, Math.round(next.patience))}</span> мин</div>
+      </div>
+      <button class="btn primary" data-act="nextClient">Обслужить</button>`;
   }
   return `<div class="actionbar" data-r="actionbar">${body}</div>`;
 }
@@ -3270,6 +3558,18 @@ function clientCard(c){
   const patiencePct = pct(c.patience, c.maxPatience);
   const myTask = busy && busy.clientId === c.id;
 
+  if (c.returnItem){
+    const left = Math.max(0, Math.round(c.patience));
+    return `<div class="client return" data-act="takeReturn" data-id="${c.id}">
+      <div class="cl-tap static">
+        <div class="cl-code">${icon('returns')} Возврат ${esc(c.returnCode)}</div>
+        <div class="muted small">Принёс посылку назад · <span data-live="patn:${c.id}">${left} мин</span></div>
+        <div class="bar"><i class="${patiencePct < 30 ? 'danger' : patiencePct < 60 ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
+      </div>
+      <button class="btn small serve" data-act="takeReturn" data-id="${c.id}">Принять</button>
+    </div>`;
+  }
+
   if (c.consult){
     return `<div class="client consult" data-act="consult" data-id="${c.id}">
       <div class="cl-tap static">
@@ -3293,7 +3593,7 @@ function clientCard(c){
 
   return `<div class="client ${sel ? 'sel' : ''} ${c.type} ${handsForMe ? 'ready' : ''}" data-act="pickClient" data-id="${c.id}">
     <button class="cl-tap" data-act="pickClient" data-id="${c.id}">
-      <div class="cl-code">${c.code} ${tags}</div>
+      <div class="cl-code">${c.code} ${tags}<span class="cl-left ${patiencePct < 30 ? 'bad' : patiencePct < 60 ? 'warn' : ''}" data-live="patn:${c.id}">${Math.max(0, Math.round(c.patience))} мин</span></div>
       <div class="bar"><i class="${patiencePct < 30 ? 'danger' : patiencePct < 60 ? 'warn' : ''}" data-live="pat:${c.id}" style="width:${patiencePct}%"></i></div>
       ${sel && loc ? `<div class="cl-addr">${icon('pin')} ${esc(loc.address)}</div>` : ''}
       ${sel && !loc && !handsForMe ? `<div class="cl-addr bad">Посылки нет на полке</div>` : ''}
@@ -3336,6 +3636,11 @@ function viewReport(){
         <div class="pnl-row total"><span>Итого за день</span><b class="${ds.net >= 0 ? 'good' : 'bad'}">${ds.net > 0 ? '+' : ''}${fmt(ds.net)} ₽</b></div>
       </div>
       ${ds.onPrepay ? `<div class="muted small" style="margin-bottom:6px">${icon('manager')} ${ds.onPrepay} сотрудник(ов) работают за счёт аванса — зарплата за них не списывалась.</div>` : ''}
+      ${(ds.returned || ds.packed || ds.shipped) ? `<div class="muted small ico-inline" style="margin:6px 0 2px; display:flex; gap:12px; flex-wrap:wrap">
+        ${ds.returned ? `<span>${icon('returns')} принято возвратов: ${ds.returned}</span>` : ''}
+        ${ds.shipped ? `<span>${icon('truck')} отправлено: ${ds.shipped}</span>` : ''}
+        ${ds.packed ? `<span>${icon('pack')} упаковано заказов: ${ds.packed}</span>` : ''}
+      </div>` : ''}
       <div class="muted small">${reportAdvice(r)}</div>
     </section>
 
@@ -3465,9 +3770,10 @@ function hintText(){
     return 'Проверьте прогноз и закупки, затем начинайте день.';
   }
   if (S.phase === 'day'){
+    const goal = `Выдано ${S.dayStats.issued} из ${Math.round(E.dayDemand(S))}`;
     const truck = S.trucks.find(t => t.arrived && t.left > 0);
     if (S.player.busy) return 'Вы обслуживаете клиента — подождите или прервите.';
-    if (truck) return 'Машина ждёт: принимайте посылки, потом раскладывайте.';
+    if (truck) return `${goal} · машина ждёт: принимайте посылки.`;
     if (S.receiving.length) return 'Выберите посылку и свободную ячейку — или «Разложить всё».';
     if (S.hands) return 'Посылка в руках: отдайте клиенту кнопкой «Выдать».';
     if (S.clients.length) return 'Тапните клиента — система покажет, где лежит его посылка.';
@@ -3513,6 +3819,41 @@ async function act(type, d){
     }
     case 'installHelp': U.installHelp = true; break;
     case 'closeInstall': U.installHelp = false; break;
+    case 'takeReturn': {
+      const r = E.takeReturn(S, d.id);
+      if (!r.ok) toast(r.msg || 'Нельзя', 'bad');
+      else { U.selClient = null; beep(600,0.05,'triangle'); toast(`Возврат: ${r.minutes} мин`); }
+      break;
+    }
+    case 'shipReturns': {
+      const r = E.shipReturns(S, true);
+      if (r.ok) toast(`Отправлено ${r.n} возврат(ов): +${fmt(r.fee)} ₽`, 'good');
+      else toast(r.msg || 'Нечего отправлять', 'bad');
+      break;
+    }
+    case 'setShift': {
+      const r = E.setShift(S, d.id, d.v);
+      if (r.ok) toast('Смена обновлена');
+      break;
+    }
+    case 'repair': {
+      const r = E.repair(S, d.id);
+      if (r.ok){ toast(`Отремонтировано за ${fmt(r.cost)} ₽`, 'good'); beep(680,0.06,'triangle'); }
+      else toast(r.msg || 'Нельзя', 'bad');
+      break;
+    }
+    case 'givePack': {
+      const r = E.giveToClient(S, d.id, true);
+      if (!r.ok) toast(r.msg || 'Нельзя', 'bad');
+      break;
+    }
+    case 'nextClient': {
+      const c = nextClient(S);
+      if (!c) { toast('Некого обслуживать', 'bad'); break; }
+      if (c.returnItem) act('takeReturn', { id: c.id });
+      else { U.selClient = c.id; U.selBox = null; beep(680,0.05); }
+      break;
+    }
     case 'fire': { const r = E.fire(S, d.id); if (!r.ok) toast(r.msg, 'bad'); break; }
     case 'loan': { const r = E.takeLoan(S, 20000); if (!r.ok) toast(r.msg, 'bad'); else beep(400,0.1,'sawtooth'); break; }
     case 'policy': {
