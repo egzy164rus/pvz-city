@@ -1592,6 +1592,12 @@ h1,h2,h3{ letter-spacing:-.022em }
   .ev-body{ padding:12px 14px calc(16px + env(safe-area-inset-bottom)) }
   .ev-opt{ padding:10px }
 }
+.ev-sheet.sev-warn .ev-art{ background:
+  radial-gradient(120% 140% at 50% 0%, color-mix(in srgb, var(--warn) 26%, transparent), transparent 62%),
+  linear-gradient(180deg, rgba(255,255,255,.05), transparent) }
+.ev-sheet.sev-warn .ev-ico .i{ color:#ffd9a0 }
+.ev-status.warn{ border-color:color-mix(in srgb, var(--warn) 34%, var(--line));
+  background:color-mix(in srgb, var(--warn) 14%, transparent); color:#ffd9a0 }
 
 </style>
 </head>
@@ -3212,10 +3218,10 @@ function resolveEvent(S, optionIdx, silent){
   if (!silent){
     if (!S.decisions) S.decisions = [];
     S.decisions.push({ day:S.day, title:ev.title, choice:opt.text, text, failed });
-    S.evRes = {
-      id: ev.id, title: ev.title, choice: opt.text, text, failed,
-      chips: failed ? eventChips({ ...opt.risk.lose }) : eventChips(opt).filter(c => c.t !== 'продолжение завтра'),
-    };
+    const chips = failed ? eventChips({ ...opt.risk.lose })
+      : eventChips(opt).filter(c => c.t !== 'продолжение завтра');
+    const tone = failed ? 'fail' : chips.some(c => c.tone === 'bad') ? 'warn' : 'ok';
+    S.evRes = { id: ev.id, title: ev.title, choice: opt.text, text, failed, tone, chips };
   }
 }
 
@@ -5094,12 +5100,12 @@ function viewEventResult(){
   const r = S.evRes;
   return `
   <div class="modal-bg ev-bg" data-act="evClose">
-    <div class="ev-sheet res sev-${r.failed ? 'fail' : 'ok'}" data-noact="1">
+    <div class="ev-sheet res sev-${r.tone || (r.failed ? 'fail' : 'ok')}" data-noact="1">
       <div class="ev-art">
-        <div class="ev-ico">${icon(r.failed ? 'alert' : 'check')}</div>
+        <div class="ev-ico">${icon(r.tone === 'ok' ? 'check' : r.tone === 'warn' ? 'info' : 'alert')}</div>
       </div>
       <div class="ev-body">
-        <div class="ev-status ${r.failed ? 'bad' : 'good'}">${icon(r.failed ? 'alert' : 'check')} ${r.failed ? 'Не получилось' : 'Решение принято'}</div>
+        <div class="ev-status ${r.tone === 'ok' ? 'good' : r.tone === 'warn' ? 'warn' : 'bad'}">${icon(r.tone === 'ok' ? 'check' : r.tone === 'warn' ? 'info' : 'alert')} ${r.tone === 'ok' ? 'Отличный ход' : r.tone === 'warn' ? 'Решение принято' : 'Не получилось'}</div>
         <div class="ev-from">${esc(r.title)}</div>
         <h2 class="ev-title">${esc(r.choice)}</h2>
         <p class="ev-text">${esc(r.text)}</p>
@@ -5204,7 +5210,8 @@ function viewHelp(){
         <p><b>3. Клиенты.</b> Клиент показывает код. Тапните на него — система подскажет адрес: «Стеллаж Б · ячейка 7». Жмите «Взять», дойдите до полки (ячейка подсвечена), затем «Выдать» — и деньги в кассе.</p>
         <p><b>4. Время — деньги.</b> Пока вы обслуживаете одного, очередь растёт. Нанимайте продавца и грузчика, чтобы не разрываться.</p>
         <p><b>5. Найм.</b> Сотрудник стоит недешево: оформление плюс аванс зарплаты за 10 дней вперёд. Уволите раньше — аванс не вернут. Поэтому первый наём — это рубеж, к которому вы копите.</p>
-        <p><b>6. Вечер.</b> Отчёт покажет прибыль, KPI и усталость. Раз в неделю — аудит контракта: не выполнили KPI — понижение.</p>
+        <p><b>6. События.</b> 1–2 раза в день что-то случается: проверка, скандал, сломавшийся кондиционер. Время на паузе, у каждого варианта видны последствия (деньги, NPS, время, риск) — подсвечен тот, что обычно выгоднее. Рискованный вариант может сработать наполовину: результат покажут честно. Часть решений возвращается продолжением на следующий день.</p>
+        <p><b>7. Вечер.</b> Отчёт покажет прибыль, KPI, ваши решения и усталость. Раз в неделю — аудит контракта: не выполнили KPI — понижение.</p>
       </div>
       <div class="opts"><button class="btn primary" data-act="closeHelp">Понятно</button></div>
     </div>

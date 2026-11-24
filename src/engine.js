@@ -1590,10 +1590,10 @@ export function resolveEvent(S, optionIdx, silent){
   if (!silent){
     if (!S.decisions) S.decisions = [];
     S.decisions.push({ day:S.day, title:ev.title, choice:opt.text, text, failed });
-    S.evRes = {
-      id: ev.id, title: ev.title, choice: opt.text, text, failed,
-      chips: failed ? eventChips({ ...opt.risk.lose }) : eventChips(opt).filter(c => c.t !== 'продолжение завтра'),
-    };
+    const chips = failed ? eventChips({ ...opt.risk.lose })
+      : eventChips(opt).filter(c => c.t !== 'продолжение завтра');
+    const tone = failed ? 'fail' : chips.some(c => c.tone === 'bad') ? 'warn' : 'ok';
+    S.evRes = { id: ev.id, title: ev.title, choice: opt.text, text, failed, tone, chips };
   }
 }
 

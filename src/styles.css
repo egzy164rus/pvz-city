@@ -1569,3 +1569,9 @@ h1,h2,h3{ letter-spacing:-.022em }
   .ev-body{ padding:12px 14px calc(16px + env(safe-area-inset-bottom)) }
   .ev-opt{ padding:10px }
 }
+.ev-sheet.sev-warn .ev-art{ background:
+  radial-gradient(120% 140% at 50% 0%, color-mix(in srgb, var(--warn) 26%, transparent), transparent 62%),
+  linear-gradient(180deg, rgba(255,255,255,.05), transparent) }
+.ev-sheet.sev-warn .ev-ico .i{ color:#ffd9a0 }
+.ev-status.warn{ border-color:color-mix(in srgb, var(--warn) 34%, var(--line));
+  background:color-mix(in srgb, var(--warn) 14%, transparent); color:#ffd9a0 }
