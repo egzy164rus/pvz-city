@@ -76,6 +76,7 @@ function planning(){
 }
 
 const PERFECT = args.perfect === 'true';
+const stats = { events:0, evMoney:0, fines:0 };
 
 /* Автоигрок: действует как живой менеджер — по одному действию, с учётом занятости */
 function botActions(){
@@ -123,7 +124,10 @@ for (let d = 1; d <= DAYS; d++){
   E.startDay(S);
   let guard = 0;
   while (S.phase === 'day' && guard++ < 2000){
-    if (S.event) E.autoResolveEvent(S);
+    if (S.event){
+      stats.events++;
+      if (args.noevents) { S.event = null; } else E.autoResolveEvent(S);
+    }
     botActions();
     E.stepMinute(S);
     if (S.over) break;
@@ -144,6 +148,8 @@ for (let d = 1; d <= DAYS; d++){
     (E.contractOf(S).name).padStart(9),
     String(S.staff.length).padStart(5),
   );
+  stats.evMoney += r.ds.events || 0;
+  stats.fines += r.ds.fines || 0;
   E.nextDay(S);
 }
 
@@ -154,5 +160,6 @@ if (h.length){
   const avgRev = last7.reduce((a,x)=>a+x.revenue,0) / last7.length;
   console.log(`\nИтог: деньги ${Math.round(S.money).toLocaleString('ru-RU')} ₽ | уровень ${S.lvl} | контракт ${E.contractOf(S).name} | NPS ${S.nps.toFixed(2)} | долг ${Math.round(S.debt)}`);
   console.log(`Средние за 7 дней: выручка ${Math.round(avgRev)} ₽, прибыль ${Math.round(avgNet)} ₽/день`);
+  console.log(`События: ${stats.events} шт, деньги от событий ${Math.round(stats.evMoney)} ₽, штрафы ${Math.round(stats.fines)} ₽`);
   console.log(`Выдано всего: ${h.reduce((a,x)=>a+x.issued,0)}, упущено: ${h.reduce((a,x)=>a+x.missed,0)}\n`);
 }

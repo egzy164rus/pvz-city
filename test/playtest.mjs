@@ -60,6 +60,7 @@ for (let step = 0; step < 900; step++){
   await page.waitForTimeout(120);
   const state = await page.evaluate(() => ({
     report: !!document.querySelector('[data-act="nextDay"]'),
+    evRes: !!document.querySelector('[data-act="evClose"]'),
     event: document.querySelectorAll('[data-act="eventOpt"]').length,
     accept: !!document.querySelector('[data-act="acceptAll"]'),
     place: !!document.querySelector('[data-act="placeAll"]'),
@@ -68,6 +69,7 @@ for (let step = 0; step < 900; step++){
     fetch: !!document.querySelector('[data-act="fetch"]'),
     give: !!document.querySelector('[data-act="give"]'),
   }));
+  if (state.evRes){ await tap('[data-act="evClose"]'); await page.waitForTimeout(120); continue; }
   if (state.event){
     eventSeen++;
     const idx = await page.evaluate(() => {

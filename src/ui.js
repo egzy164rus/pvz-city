@@ -246,7 +246,7 @@ function render(){
     : shell === 'plan' ? viewPlan()
     : viewDay();
   const overlays = (U.toast ? `<div class="toast ${U.toast.kind}">${esc(U.toast.msg)}</div>` : '')
-    + (S && S.event ? viewEvent() : '')
+    + (S && S.event ? viewEvent() : S && S.evRes ? viewEventResult() : '')
     + (U.menu ? viewMenu() : '')
     + (U.help ? viewHelp() : '')
     + (U.installHelp ? viewInstall() : '');
@@ -1391,6 +1391,22 @@ function viewReport(){
       ${ds.onPrepay ? `<div class="muted small" style="margin-top:8px">${ds.onPrepay} сотрудник(ов) работают за счёт аванса — зарплата не списывалась.</div>` : ''}
     </section>
 
+    ${(() => {
+      const dec = (S.decisions || []).filter(d => d.day === S.day);
+      if (!dec.length) return '';
+      return `<section class="card pad" data-r="decisions">
+        <div class="sec-head">
+          <div class="sh-ico">${icon('flag2')}</div>
+          <div class="sh-t">Решения дня</div>
+          <div class="sh-meta">${dec.length}</div>
+        </div>
+        <div>${dec.map(d => `<div class="dec-row">
+          <div class="dec-t ${d.failed ? 'bad' : ''}">${icon(d.failed ? 'alert' : 'check')} ${esc(d.choice)}</div>
+          <div class="dec-s">${esc(d.title)} · ${esc(d.text)}</div>
+        </div>`).join('')}</div>
+      </section>`;
+    })()}
+
     <section class="card pad advice" data-r="advice">
       <div class="sec-head">
         <div class="sh-ico">${icon('sparkle')}</div>
@@ -1423,23 +1439,78 @@ function reportAdvice(r){
 }
 
 /* ---------------- события ---------------- */
+function evRecommend(S, ev){
+  let best = -1, bestScore = -1e9;
+  const safe = ev.options.map((o, i) => i).filter(i => !ev.options[i].risk);
+  const ids = safe.length ? safe : ev.options.map((o, i) => i);
+  ids.forEach(i => {
+    const o = ev.options[i];
+    const score = -(Math.abs(o.money || 0))
+      - (o.fine || 0) * 1.2
+      + (o.nps || 0) * 5000
+      + (o.traffic ? 2500 * (o.traffic - 1) * 10 : 0)
+      + (o.mood || 0) * 40
+      - (o.skip || 0) * 12
+      - (o.spendMin || 0) * 8
+      - (o.fatigueTeam || 0) * 30
+      - (o.pay ? 4000 : 0);
+    if (score > bestScore){ bestScore = score; best = i; }
+  });
+  return best;
+}
+
+function evChips(list){
+  return `<div class="eo-chips">${list.map(c => `<span class="eo-chip ${c.tone}">${icon(c.ico)}${esc(c.t)}</span>`).join('')}</div>`;
+}
+
+function viewEventResult(){
+  const r = S.evRes;
+  return `
+  <div class="modal-bg ev-bg" data-act="evClose">
+    <div class="ev-sheet res sev-${r.failed ? 'fail' : 'ok'}" data-noact="1">
+      <div class="ev-art">
+        <div class="ev-ico">${icon(r.failed ? 'alert' : 'check')}</div>
+      </div>
+      <div class="ev-body">
+        <div class="ev-status ${r.failed ? 'bad' : 'good'}">${icon(r.failed ? 'alert' : 'check')} ${r.failed ? 'Не получилось' : 'Решение принято'}</div>
+        <div class="ev-from">${esc(r.title)}</div>
+        <h2 class="ev-title">${esc(r.choice)}</h2>
+        <p class="ev-text">${esc(r.text)}</p>
+        ${r.chips && r.chips.length ? evChips(r.chips) : ''}
+        <button class="btn primary big" data-act="evClose">Продолжить ${icon('chevron')}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function viewEvent(){
   const ev = S.event;
+  const cat = (E.EV_CATS && E.EV_CATS[ev.cat]) || { name:'Событие', ico:'alert' };
+  const rec = evRecommend(S, ev);
   return `
-  <div class="modal-bg">
-    <div class="modal">
-      <div class="modal-head">
-        <div class="modal-ico">${icon('alert')}</div>
-        <div>
-          <div class="kicker">Событие</div>
-          <h2>${esc(ev.title)}</h2>
+  <div class="modal-bg ev-bg">
+    <div class="ev-sheet sev-${ev.sev || 'info'}">
+      <div class="ev-art">
+        <div class="ev-ico">${icon(ev.art || cat.ico)}</div>
+        <div class="ev-cat">${icon(cat.ico)} ${esc(cat.name)}</div>
+      </div>
+      <div class="ev-body">
+        <h2 class="ev-title">${esc(ev.title)}</h2>
+        <p class="ev-text">${esc(ev.text)}</p>
+        <div class="ev-options">
+          ${ev.options.map((o, i) => `
+            <button class="ev-opt ${i === rec ? 'rec' : ''} ${o.risk ? 'risky' : ''}" data-act="eventOpt" data-i="${i}">
+              <span class="eo-mark${i === rec ? ' rec' : o.risk ? ' risk' : ''}">${i === rec ? icon('sparkle') : o.risk ? icon('target') : (i + 1)}</span>
+              <span class="eo-body">
+                <span class="eo-t">${esc(o.text)}</span>
+                ${o.hint ? `<span class="eo-h">${esc(o.hint)}</span>` : ''}
+                ${evChips(E.eventChips(o))}
+              </span>
+              <span class="eo-go">${icon('chevron')}</span>
+            </button>`).join('')}
         </div>
+        <div class="ev-note">${icon('pause')} Время остановлено, пока вы решаете${rec === 0 || rec > 0 ? ' · подсвеченный вариант обычно выгоднее' : ''}</div>
       </div>
-      <p class="muted">${esc(ev.text)}</p>
-      <div class="opts">
-        ${ev.options.map((o, i) => `<button class="btn opt" data-act="eventOpt" data-i="${i}"><span class="opt-t">${esc(o.text)}</span><span class="opt-go">${icon('chevron')}</span></button>`).join('')}
-      </div>
-      <div class="muted small ico-inline">${icon('clock')} ${Math.max(0, Math.round(ev.endsAt - S.minutes))} мин на решение</div>
     </div>
   </div>`;
 }
@@ -1799,7 +1870,8 @@ async function act(type, d){
       break;
     }
     case 'consult': { const r = E.consult(S, d.id); if (!r.ok) toast(r.msg, 'bad'); break; }
-    case 'eventOpt': { E.resolveEvent(S, +d.i); beep(500,0.08,'triangle'); break; }
+    case 'eventOpt': { E.resolveEvent(S, +d.i); beep(500,0.08,'triangle'); if (navigator.vibrate) navigator.vibrate(12); break; }
+    case 'evClose': { E.closeEventResult(S); break; }
     case 'endDayNow': E.endDay(S); U.screen = 'report'; save(); break;
     case 'openMenu': U.menu = !U.menu; break;
     case 'help': U.help = true; U.menu = false; break;

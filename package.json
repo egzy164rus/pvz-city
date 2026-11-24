@@ -14,5 +14,9 @@
     "icons": "node make-icons.mjs",
     "pwa": "node test/pwa.mjs",
     "serve:http": "python3 -m http.server 8123"
+  },
+  "dependencies": {
+    "jsdom": "^29.1.1",
+    "playwright-core": "^1.49.0"
   }
 }

@@ -121,8 +121,10 @@ if (truck){
 let served = false, addrSeen = false;
 for (let i=0;i<80 && !served;i++){
   await sleep(200);
+  const evRes = q('[data-act="evClose"]');
+  if (evRes){ click(evRes); await sleep(120); continue; }
   const ev = q('[data-act="eventOpt"]');
-  if (ev){ click(ev); await sleep(150); continue; }
+  if (ev){ click(ev); await sleep(200); check('событие показывает чипы последствий', qa('.eo-chip').length > 0, qa('.eo-chip').length + ' чипов'); continue; }
   const cl = q('[data-act="pickClient"]');
   if (cl && !q('[data-act="give"]')){
     click(cl);

@@ -466,7 +466,7 @@ function scheduleEvents(S){
 }
 
 export function stepMinute(S){
-  if (S.phase !== 'day' || S.event || S.over) return;
+  if (S.phase !== 'day' || S.event || S.evRes || S.over) return;
   S.minutes++;
 
   // задача игрока
@@ -1353,89 +1353,259 @@ export function addXp(S, n){
 }
 
 /* ---------------- события ---------------- */
+export const EV_CATS = {
+  clients: { name:'Клиенты',  ico:'users' },
+  stock:   { name:'Склад',    ico:'truck' },
+  money:   { name:'Деньги',   ico:'wallet' },
+  team:    { name:'Команда',  ico:'manager' },
+  place:   { name:'Помещение',ico:'store' },
+  city:    { name:'Город',    ico:'flag2' },
+};
+
 const EVENTS = [
   {
-    id:'inspect', minDay:5, title:'Проверка Роспотребнадзора',
+    id:'inspect', minDay:5, cat:'city', art:'award', sev:'warn',
+    title:'Проверка Роспотребнадзора',
     text:'Инспектор на пороге. В зале пыльно, но полки в порядке.',
     options:[
-      { text:'Дать «на кофе» (−12000 ₽)', money:-12000, nps:0.02, log:'Инспектор ушёл довольным. Но осадочек.' },
-      { text:'Пустить как есть', fine:6000, nps:-0.15, log:'Штраф выписан, NPS просел.' },
-      { text:'Закрыться и убраться (день −2 часа)', skip:120, nps:0.05, log:'Чисто, но потеряли 2 часа торговли.' },
+      { text:'Дать «на кофе»', hint:'Быстро и тихо, но дорого', money:-12000, nps:0.02,
+        log:'Инспектор ушёл довольным. Но осадочек.' },
+      { text:'Закрыться и убраться', hint:'Чисто, но теряете два часа торговли', skip:120, nps:0.05,
+        log:'Чисто, но потеряли 2 часа торговли.' },
+      { text:'Пустить как есть', hint:'Бесплатно, но со штрафом', fine:6000, nps:-0.15,
+        log:'Штраф выписан, NPS просел.' },
     ],
   },
   {
-    id:'advance', minDay:3, title:'Сотрудник просит аванс',
+    id:'advance', minDay:3, cat:'team', art:'manager', sev:'info',
+    title:'Сотрудник просит аванс',
     text:'«Мне бы 5 000 до пятницы, очень надо».',
     options:[
-      { text:'Дать 5000 ₽ сейчас', money:-5000, mood:12, log:'Команда оценила. Настроение выросло.' },
-      { text:'Отказать', mood:-10, nps:-0.01, log:'Обиделся. Работает хуже.' },
-      { text:'Дать под условие «суббота — рабочая»', money:-5000, mood:6, fatigueTeam:8, log:'Согласился. Но суббота будет тяжёлой.' },
+      { text:'Дать 5 000 ₽ сейчас', hint:'Команда это запомнит', money:-5000, mood:12,
+        log:'Команда оценила. Настроение выросло.' },
+      { text:'Дать под условие «суббота рабочая»', hint:'Дешевле для кассы, тяжелее для людей',
+        money:-5000, mood:6, fatigueTeam:8, log:'Согласился. Но суббота будет тяжёлой.' },
+      { text:'Отказать', hint:'Касса цела, обида останется', mood:-10, nps:-0.01,
+        log:'Обиделся. Работает хуже.' },
     ],
   },
   {
-    id:'tariff', minDay:3, title:'Маркетплейс предлагает новый объём',
-    text:'+30% посылок, но −15% к выплате за заказ и строже SLA.',
+    id:'tariff', minDay:3, cat:'city', art:'chart', sev:'warn',
+    title:'Маркетплейс предлагает новый объём',
+    text:'+30 % посылок, но −15 % к выплате за заказ и строже SLA.',
     options:[
-      { text:'Согласиться', pay:-0.15, traffic:1.3, log:'Объём вырос, маржа упала.' },
-      { text:'Отказаться', nps:-0.02, log:'Объём ушёл соседнему ПВЗ.' },
+      { text:'Согласиться', hint:'Больше работы, меньше маржи', pay:-0.15, traffic:1.3,
+        log:'Объём вырос, маржа упала.' },
+      { text:'Отказаться', hint:'Спокойно, но объём уйдёт соседу', nps:-0.02,
+        log:'Объём ушёл соседнему ПВЗ.' },
     ],
   },
   {
-    id:'scandal', minDay:1, title:'Скандал в зале',
+    id:'scandal', minDay:1, cat:'clients', art:'alert', sev:'bad',
+    title:'Скандал в зале',
     text:'Клиент снимает на телефон: «Мой заказ потеряли!»',
     options:[
-      { text:'Публично извиниться и дать скидку (−2000 ₽)', money:-2000, nps:0.06, log:'Видео вышло добрым. NPS вырос.' },
-      { text:'Спокойно найти заказ', nps:0.01, spendMin:20, log:'Нашли. Нервы, но репутация цела.' },
-      { text:'Выгнать', nps:-0.12, log:'Видео набрало просмотры. Плохо.' },
+      { text:'Извиниться и дать скидку', hint:'Дорого, но видео выйдет добрым', money:-2000, nps:0.06,
+        chain:'thanks', log:'Видео вышло добрым. NPS вырос.' },
+      { text:'Спокойно найти заказ', hint:'Дольше, зато бесплатно', nps:0.01, spendMin:20,
+        log:'Нашли. Нервы, но репутация цела.' },
+      { text:'Выгнать', hint:'Бесплатно. Риск: ролик разлетится', nps:-0.12, chain:'bloggerBad',
+        log:'Видео набрало просмотры. Плохо.' },
     ],
   },
   {
-    id:'blogger', minDay:4, title:'Блогер снимает ролик',
+    id:'blogger', minDay:4, cat:'city', art:'video', sev:'info',
+    title:'Блогер снимает ролик',
     text:'«Ребята, у вас тут мило. Можно снять?»',
     options:[
-      { text:'Заплатить за рекламу 8000 ₽', money:-8000, traffic:1.15, log:'Охват вырос: поток +15% на неделю.' },
-      { text:'Разрешить бесплатно', nps:0.03, log:'Сняли. Вышло неплохо.' },
-      { text:'Отказать', log:'Сняли «как есть» — без восторгов.' },
+      { text:'Заплатить за рекламу', hint:'Поток +15 % на неделю', money:-8000, traffic:1.15,
+        log:'Охват вырос: поток +15% на неделю.' },
+      { text:'Разрешить бесплатно', hint:'Бесплатно, эффект небольшой', nps:0.03,
+        log:'Сняли. Вышло неплохо.' },
+      { text:'Отказать', hint:'Ничего не меняется', log:'Сняли «как есть» — без восторгов.' },
     ],
   },
   {
-    id:'fridge', minDay:4, title:'Сломался кондиционер',
+    id:'fridge', minDay:4, cat:'place', art:'wind', sev:'warn',
+    title:'Сломался кондиционер',
     text:'На улице +32, в зале душно.',
     options:[
-      { text:'Ремонт сейчас (−8000 ₽)', money:-8000, log:'Починили. Клиенты довольны.' },
-      { text:'Ждать мастера 2 дня', nps:-0.08, mood:-10, log:'Два дня духоты.' },
+      { text:'Ремонт сейчас', hint:'Дорого, клиенты не страдают', money:-8000,
+        log:'Починили. Клиенты довольны.' },
+      { text:'Ждать мастера 2 дня', hint:'Бесплатно, но душно', nps:-0.08, mood:-10,
+        log:'Два дня духоты.' },
+    ],
+  },
+  {
+    id:'courier', minDay:2, cat:'stock', art:'truck', sev:'info',
+    title:'Курьер приехал на час раньше',
+    text:'Машина уже во дворе, а вы ещё не готовили зону приёмки.',
+    options:[
+      { text:'Принять вне графика', hint:'Потратите ~20 минут', spendMin:20, money:600,
+        log:'Приняли раньше срока — успели разложить.' },
+      { text:'Отправить в соседний ПВЗ', hint:'Спокойно, но с потерей', money:-1500,
+        log:'Посылки уехали в соседний пункт.' },
+      { text:'Попросить подождать', hint:'Бесплатно. Риск: курьер спешит', risk:{ p:0.45,
+          lose:{ nps:-0.05, log:'Курьер уехал, часть посылок опоздала.' } },
+        log:'Курьер подождал и уехал довольным.' },
+    ],
+  },
+  {
+    id:'vip', minDay:2, cat:'clients', art:'star', sev:'info',
+    title:'Постоянный клиент просит вне очереди',
+    text:'«Я тут каждый день, пропустите, пожалуйста». Очередь слышит.',
+    options:[
+      { text:'Пропустить вперёд', hint:'Чаевые, но очередь ворчит', money:300, nps:0.02,
+        log:'Клиент оставил чаевые. Очередь — сдержанно.' },
+      { text:'Предложить доставку', hint:'Маленькая скидка — все довольны', money:-400, nps:0.05,
+        log:'Оформили доставку вне очереди. Все довольны.' },
+      { text:'Сказать «в порядке очереди»', hint:'По правилам, но обидно', nps:-0.03,
+        log:'Отказали. Правильно, но холодно.' },
+    ],
+  },
+  {
+    id:'missing', minDay:6, cat:'money', art:'wallet', sev:'bad',
+    title:'Недостача при инвентаризации',
+    text:'Одной посылки нет ни на полке, ни в приёмке.',
+    options:[
+      { text:'Погасить из кассы', hint:'Быстро и без шума', money:-2200,
+        log:'Погасили из кассы. Тихо.' },
+      { text:'Искать два часа', hint:'Бесплатно. Риск: не найдёте', skip:60,
+        risk:{ p:0.5, lose:{ fine:3500, log:'Искали два часа, не нашли — ещё и штраф.' } },
+        log:'Нашли! Два часа, зато без потерь.' },
+      { text:'Списать на погрешность', hint:'Штраф маркетплейса', fine:1500, nps:-0.03,
+        log:'Списали. Маркетплейс выставил штраф.' },
+    ],
+  },
+  {
+    id:'leak', minDay:5, cat:'place', art:'wind', sev:'bad',
+    title:'Потёк потолок',
+    text:'После ливня в углу зала капает прямо на стеллаж.',
+    options:[
+      { text:'Срочный ремонт', hint:'Дорого, но без потерь', money:-5000,
+        log:'Кровлю залатали. Посылки целы.' },
+      { text:'Подставить вёдра', hint:'Дёшево. Риск: испортите посылки', money:-800,
+        risk:{ p:0.55, lose:{ fine:3000, nps:-0.07, log:'Вода достала посылки — штраф и жалобы.' } },
+        log:'Вёдра спасли положение. Пока сухо.' },
+    ],
+  },
+  /* продолжения — приходят на следующий день после решения */
+  {
+    id:'thanks', chain:true, cat:'clients', art:'sparkle', sev:'info',
+    title:'Клиент вернулся с благодарностью',
+    text:'Тот самый скандалист: «Вы молодцы, извините за видео».',
+    options:[
+      { text:'Предложить бонус', hint:'Небольшая скидка — лояльность', money:-500, nps:0.06,
+        log:'Клиент стал постоянным.' },
+      { text:'Просто поблагодарить', hint:'Бесплатно', nps:0.04,
+        log:'Поблагодарили. Тёплый отзыв в картах.' },
+    ],
+  },
+  {
+    id:'bloggerBad', chain:true, cat:'city', art:'video', sev:'bad',
+    title:'Ролик про ваш ПВЗ набрал 200 тыс. просмотров',
+    text:'Комментарии злые, звонят журналисты.',
+    options:[
+      { text:'Публично ответить и извиниться', hint:'Дешево и снимает волну', money:-1000, nps:0.05,
+        log:'Публично ответили — волна спала.' },
+      { text:'Нанять SMM-специалиста', hint:'Дорого, зато надолго', money:-2800, nps:0.09,
+        log:'SMM выкрутил ситуацию в плюс.' },
+      { text:'Игнорировать', hint:'Бесплатно. Репутация просядет', nps:-0.10,
+        log:'Игнорировали. Рейтинг просел.' },
     ],
   },
 ];
 
-function triggerEvent(S){
-  const pool = EVENTS.filter(e => S.day >= (e.minDay || 1));
-  if (!pool.length) return;
-  const ev = pick(S, pool);
-  S.event = { ...ev, endsAt: S.minutes + 45 };
+const EV_BY_ID = Object.fromEntries(EVENTS.map(e => [e.id, e]));
+
+/* чипы последствий для превью опции */
+export function eventChips(opt){
+  const out = [];
+  const m = n => (n > 0 ? '+' : '−') + Math.abs(n).toLocaleString('ru-RU').replace(/,/g, ' ');
+  if (opt.money) out.push({ tone: opt.money < 0 ? 'bad' : 'good', ico:'wallet', t:`${m(opt.money)} ₽` });
+  if (opt.fine) out.push({ tone:'bad', ico:'alert', t:`штраф до ${m(opt.fine)} ₽` });
+  if (opt.nps) out.push({ tone: opt.nps > 0 ? 'good' : 'bad', ico:'star', t:`NPS ${opt.nps > 0 ? '+' : '−'}${Math.abs(opt.nps).toFixed(2)}` });
+  if (opt.mood) out.push({ tone: opt.mood > 0 ? 'good' : 'bad', ico:'users', t:`настрой ${opt.mood > 0 ? '+' : '−'}${Math.abs(opt.mood)}` });
+  if (opt.fatigueTeam) out.push({ tone:'bad', ico:'clock', t:`усталость +${opt.fatigueTeam}` });
+  if (opt.skip) out.push({ tone:'bad', ico:'clock', t:`−${opt.skip} мин` });
+  if (opt.spendMin) out.push({ tone:'warn', ico:'clock', t:`~${opt.spendMin} мин` });
+  if (opt.pay) out.push({ tone:'warn', ico:'chart', t:`выплата ${Math.round(opt.pay*100)} %` });
+  if (opt.traffic) out.push({ tone:'good', ico:'users', t:`поток +${Math.round((opt.traffic-1)*100)} %` });
+  if (opt.risk) out.push({ tone:'warn', ico:'target', t:`риск ${Math.round(opt.risk.p*100)} %` });
+  if (opt.chain) out.push({ tone:'info', ico:'sparkle', t:'продолжение завтра' });
+  return out;
 }
 
-export function resolveEvent(S, optionIdx){
-  const ev = S.event;
-  if (!ev) return;
-  const opt = ev.options[optionIdx];
-  S.event = null;
-  if (!opt) return;
+function triggerEvent(S){
+  if (!S.evChain) S.evChain = [];
+  let ev = null;
+  if (S.evChain.length){
+    const id = S.evChain.shift();
+    ev = EV_BY_ID[id] || null;
+  }
+  if (!ev){
+    const pool = EVENTS.filter(e => !e.chain && S.day >= (e.minDay || 1));
+    if (!pool.length) return;
+    ev = pick(S, pool);
+  }
+  S.event = { ...ev, id: ev.id };
+}
+
+function applyOpt(S, opt){
   if (opt.money){ S.money += opt.money; S.dayStats.events = (S.dayStats.events || 0) + opt.money; }
   if (opt.fine){ const f = fine(S, opt.fine); S.dayStats.fines += f; S.money -= f; }
   if (opt.nps) S.nps = clamp(S.nps + opt.nps, 0, 5);
   if (opt.mood) S.staff.forEach(st => st.mood = clamp(st.mood + opt.mood, 0, 100));
   if (opt.fatigueTeam) S.staff.forEach(st => st.fatigue = Math.min(100, st.fatigue + opt.fatigueTeam));
   if (opt.skip) S.minutes += opt.skip;
-  if (opt.spendMin && chance(S, 0.85)) S.nps = clamp(S.nps + (opt.nps||0), 0, 5);
+  if (opt.spendMin) S.minutes += Math.min(opt.spendMin, 20);
   if (opt.pay) S.eventPayMod = (S.eventPayMod || 1) * (1 + opt.pay);
   if (opt.traffic) S.eventTrafficMod = (S.eventTrafficMod || 1) * opt.traffic;
-  pushLog(S, `${ev.title}: ${opt.log}`, 'event');
 }
 
-export function autoResolveEvent(S){
-  if (S.event) resolveEvent(S, S.event.options.length - 1);
+export function resolveEvent(S, optionIdx, silent){
+  const ev = S.event;
+  if (!ev) return;
+  const opt = ev.options[optionIdx];
+  S.event = null;
+  if (!opt) return;
+
+  // риск: бросок честный, seeded
+  let branch = opt, failed = false;
+  if (opt.risk){
+    failed = chance(S, opt.risk.p);
+    if (failed) branch = { ...opt, ...opt.risk.lose, money:(opt.risk.lose.money||0) + (opt.money||0) };
+  }
+  applyOpt(S, { ...opt, risk: undefined, chain: undefined });
+  if (failed) applyOpt(S, opt.risk.lose);
+
+  if (!failed && opt.chain){
+    if (!S.evChain) S.evChain = [];
+    S.evChain.push(opt.chain);
+  }
+
+  const text = failed ? (opt.risk.lose.log || 'Не получилось.') : opt.log;
+  pushLog(S, `${ev.title}: ${text}`, failed ? 'bad' : 'event');
+
+  if (!silent){
+    if (!S.decisions) S.decisions = [];
+    S.decisions.push({ day:S.day, title:ev.title, choice:opt.text, text, failed });
+    S.evRes = {
+      id: ev.id, title: ev.title, choice: opt.text, text, failed,
+      chips: failed ? eventChips({ ...opt.risk.lose }) : eventChips(opt).filter(c => c.t !== 'продолжение завтра'),
+    };
+  }
 }
+
+export function closeEventResult(S){ S.evRes = null; }
+
+export function autoResolveEvent(S){
+  // игрок не успел решить — считаем, что выбран последний (самый рискованный) вариант
+  if (S.event) resolveEvent(S, S.event.options.length - 1, true);
+  if (S.evRes) S.evRes = null;
+}
+
+
 
 /* ---------------- разбор дня ---------------- */
 export function endDay(S){
